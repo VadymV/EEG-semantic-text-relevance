@@ -19,7 +19,7 @@ To run this script use ``poetry run python benchmark.py --project_path=path
 for sentence relevance prediction. The project_path should point to the
 folder that contains the folder ``data_prepared_for_benchmark``.
 If this folder does not exist, run the script prepare.py first or
-download the data from here: https://doi.org/10.17605/OSF.IO/P4ZUE
+download the data from here: ANONYMOUS
 The script saves the results as pickle files.
 """
 import argparse
