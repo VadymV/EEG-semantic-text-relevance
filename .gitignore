@@ -1,0 +1,4 @@
+.idea
+*__pycache*
+/data/
+/lightning_logs/

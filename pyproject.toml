@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "EEG-semantic-text-relevance"
+version = "0.1.0"
+description = "Code to reproduce benchmarks results of the paper submitted to ICLR
+authors = [""]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+mne = "^1.7.0"
+pandas = "^2.2.2"
+seaborn = "^0.13.2"
+matplotlib = "^3.9.0"
+numpy = "^1.26.4"
+torch = "^2.3.0"
+torchvision = "^0.18.0"
+nltk = "^3.8.1"
+pylint = "^3.2.2"
+torcheeg = "^1.1.2"
+huggingface-hub = "^0.23.3"
+pyarrow = "^16.1.0"
+datasets = "^2.19.2"
+mlcroissant = "^1.0.5"
+gitpython = "^3.1.43"
+osfclient = "^0.0.5"
+sphinx = "^7.3.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
