@@ -54,7 +54,7 @@ def run(file_pattern: str, args: argparse.Namespace):
 
     # Calculate classification metrics:
     groups = results.groupby(
-        ['seed', 'user', 'model', 'strategy', 'reading_task'])
+        ['seed', 'user', 'model', 'strategy'])
     mcc = groups.apply(
         lambda x: BinaryMatthewsCorrCoef()(tensor(x.predictions.tolist()),
                                            tensor(x.targets.tolist())).item(),
@@ -85,14 +85,10 @@ def run(file_pattern: str, args: argparse.Namespace):
     auc.rename(columns={0: 'auc'}, inplace=True)
 
     # Concatenate metrics:
-    metrics = mcc.merge(precision, on=['seed', 'user', 'model', 'strategy',
-                                       'reading_task'])
-    metrics = metrics.merge(kappa, on=['seed', 'user', 'model', 'strategy',
-                                       'reading_task'])
-    metrics = metrics.merge(recall, on=['seed', 'user', 'model', 'strategy',
-                                        'reading_task'])
-    metrics = metrics.merge(auc, on=['seed', 'user', 'model', 'strategy',
-                                     'reading_task'])
+    metrics = mcc.merge(precision, on=['seed', 'user', 'model', 'strategy'])
+    metrics = metrics.merge(kappa, on=['seed', 'user', 'model', 'strategy'])
+    metrics = metrics.merge(recall, on=['seed', 'user', 'model', 'strategy'])
+    metrics = metrics.merge(auc, on=['seed', 'user', 'model', 'strategy'])
 
     for model in metrics.model.unique():
         latex_output = ''
