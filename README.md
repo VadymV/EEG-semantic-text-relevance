@@ -7,16 +7,16 @@ Dataset is available from [huggingface][1].
 **Short description**: Electroencephalography (EEG) enables non-invasive, real-time tracking of brain activity during language processing. Existing EEG datasets focus either on natural reading or controlled psycholinguistic settings. To address this gap, we introduce a novel dataset of 23,270 time-locked (0.7s) word-level EEG recordings, where participants read text that was either semantically relevant or irrelevant to self-selected topics. We benchmark two evaluation protocols — participant-independent and participant-dependent — on word and sentence relevance prediction tasks, using five models. Our dataset and code are openly available, supporting advancements in language relevance research, psycholinguistics, and brain-computer interface (BCI) systems for real-time semantic detection.
 
 ---
-## Reproducibility of the benchmark results
+# Reproducibility of the benchmark results
 
-### Configure the environment
+## Configure the environment
 ``poetry`` is used for dependency management.
 See how to install ``poetry`` here: [poetry][2].
 
 After ``poetry`` is installed, run ``poetry install`` in the folder where the ``README.md`` file is located.
 
 
-### Getting the preprocessed and prepared data
+## Getting the preprocessed and prepared data
 
 Download the ``data_prepared_for_benchmark`` from [data repository][1] and extract the files.
 
