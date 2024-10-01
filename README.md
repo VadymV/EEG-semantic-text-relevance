@@ -18,7 +18,7 @@ After ``poetry`` is installed, run ``poetry install`` in the folder where the ``
 
 ## Getting the preprocessed and prepared data
 
-Download the ``data_prepared_for_benchmark`` from [data repository][1] and extract the files.
+Download the ``data_prepared_for_benchmark`` from [data repository][3] and extract the files.
 
 ## Run word relevance classification task
 
@@ -43,3 +43,4 @@ poetry run python generate_results.py --project_path=path
 
   [1]: https://huggingface.co/datasets/Quoron/EEG-semantic-text-relevance
   [2]: https://python-poetry.org/docs/#installation
+  [3]: https://drive.proton.me/urls/2TWQXJW2C4#9G2lbi7SuGFE
