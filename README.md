@@ -42,6 +42,7 @@ poetry run python generate_results.py --project_path=path
 ```
 
 Benchmark results:
+
 ![Benchmark results](results.PNG)
 
   [1]: https://huggingface.co/datasets/Quoron/EEG-semantic-text-relevance
