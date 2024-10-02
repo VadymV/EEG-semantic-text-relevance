@@ -41,6 +41,9 @@ Scores are saved to a ``logs_results.log`` file and outputted in a terminal wind
 poetry run python generate_results.py --project_path=path
 ```
 
+Benchmark results:
+![Benchmark results](results.PNG)
+
   [1]: https://huggingface.co/datasets/Quoron/EEG-semantic-text-relevance
   [2]: https://python-poetry.org/docs/#installation
   [3]: https://drive.proton.me/urls/2TWQXJW2C4#9G2lbi7SuGFE
