@@ -17,7 +17,7 @@ Preprocesses and prepares EEG data for benchmarking.
 Run it with ``poetry run python prepare.py --project_path=path``
 The project_path should point to the folder that contains the
 ``raw`` folder with the ``raw`` EEG data and the annotations.csv file.
-Please download the data from here: https://doi.org/10.17605/OSF.IO/P4ZUE.
+Please download the data from here: ANONYMOUS.
 After running this script, the following folders/files will be created in
 the project_path:
     ``filtered``
