@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-This script reproduces the benchmark results of our paper submitted to NeurIPS.
+This script reproduces the benchmark results of our paper submitted to ICLR 2025.
 To run this script use ``poetry run python benchmark.py --project_path=path
 --benchmark={w,s}`` where w stands for word relevance prediction and s stands
 for sentence relevance prediction. The project_path should point to the
