@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "EEG-semantic-text-relevance"
 version = "0.1.0"
-description = "Code to reproduce benchmarks results of the paper submitted to ICLR
-authors = [""]
+description = "Code to reproduce benchmarks results of the paper 'An EEG dataset of word-level brain responses for semantic text relevance'"
+authors = ["Vadym Gryshchuk"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
