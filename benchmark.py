@@ -13,13 +13,13 @@
 # limitations under the License.
 
 """
-This script reproduces the benchmark results of our paper submitted to ICLR 2025.
+This script reproduces the benchmark results of our paper submitted to SIGIR 2025.
 To run this script use ``poetry run python benchmark.py --project_path=path
 --benchmark={w,s}`` where w stands for word relevance prediction and s stands
 for sentence relevance prediction. The project_path should point to the
 folder that contains the folder ``data_prepared_for_benchmark``.
 If this folder does not exist, run the script prepare.py first or
-download the data from here: ANONYMOUS
+download the data from here: https://drive.proton.me/urls/2TWQXJW2C4#9G2lbi7SuGFE
 The script saves the results as pickle files.
 """
 import argparse

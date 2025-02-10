@@ -64,6 +64,16 @@ class DataPreprocessor:
         self.annotations = pd.read_csv(os.path.join(project_path,
                                                     'annotations.csv'))
 
+
+    def remove_filter_folder(self):
+        utils.remove_folder(self.filtered_data_dir)
+
+    def remove_epoched_folder(self):
+        utils.remove_folder(self.epoched_data_dir)
+
+    def remove_cleaned_folder(self):
+        utils.remove_folder(self.cleaned_data_dir)
+
     def _filter(self, file_name: str):
         """
         Filters the EEG data by applying a band-pass filter (0.25-35Hz)
@@ -71,7 +81,6 @@ class DataPreprocessor:
 
         Args:
             file_name: A name of the file.
-
         """
         logging.info('\nFiltering%s', file_name)
         logging.info('Output will be saved into %s', self.filtered_data_dir)

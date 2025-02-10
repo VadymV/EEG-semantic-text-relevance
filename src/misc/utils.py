@@ -6,6 +6,7 @@ import argparse
 import logging
 import os
 import random
+import shutil
 from enum import Enum
 
 import numpy as np
@@ -29,6 +30,19 @@ def create_folder(output_dir, with_checking=False):
         os.makedirs(output_dir)
 
     return output_dir
+
+
+def remove_folder(folder_path: str):
+    """
+    Removes a folder.
+    Args:
+        folder_path: A folder.
+    """
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+        print(f"Folder '{folder_path}' has been removed.")
+    else:
+        print(f"Folder '{folder_path}' does not exist.")
 
 
 def set_logging(log_dir: str, file_name: str):
@@ -62,12 +76,15 @@ def set_seed(seed):
     cudnn.deterministic = True
 
 
-def create_args(seeds_args: bool = True, benchmark_args: bool = True) -> argparse.ArgumentParser:
+def create_args(seeds_args: bool = True,
+                benchmark_args: bool = True,
+                data_type_args: bool = False) -> argparse.ArgumentParser:
     """
     Creates an argument parser.
     Args:
         seeds_args: Whether to add the ``seeds`` argument.
         benchmark_args: Whether to add the ``benchmark`` argument.
+        data_type_args: Whether to add the ``data_type`` argument.
 
     Returns:
         An argument parser.
@@ -88,6 +105,11 @@ def create_args(seeds_args: bool = True, benchmark_args: bool = True) -> argpars
                             type=str,
                             default='w',
                             help='"w" or "s"')
+    if data_type_args:
+        parser.add_argument('--data_type',
+                            type=str,
+                            default='benchmark',
+                            help='"benchmark" or "preprocessed"')
 
     return parser
 
