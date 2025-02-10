@@ -24,6 +24,7 @@ mlcroissant = "^1.0.5"
 gitpython = "^3.1.43"
 osfclient = "^0.0.5"
 sphinx = "^7.3.7"
+pytest = "^8.3.4"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -31,8 +32,6 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v"
-log_cli = true
-
 
 [build-system]
 requires = ["poetry-core"]
