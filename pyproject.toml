@@ -26,12 +26,12 @@ osfclient = "^0.0.5"
 sphinx = "^7.3.7"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]  # Ensure your tests are in the "tests" directory
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v"  # Verbose output
-log_cli = true  # Enable logging output during tests
+addopts = "-v"
+log_cli = true
 
 
 [build-system]
