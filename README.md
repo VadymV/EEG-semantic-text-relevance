@@ -104,6 +104,8 @@ The reason for selecting 32 is the same as for the LSTM model setting the parame
 The parameter **num_layer** was set to 2, as used by [4] for document classification 
 using a small Transformer architecture.
 
+---
+
 If you use our dataset, please cite:
 ```
 @unpublished{Gryshchuk2025_EEG-dataset,
