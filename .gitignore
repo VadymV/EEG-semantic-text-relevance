@@ -2,3 +2,4 @@
 *__pycache*
 /data/
 /lightning_logs/
+/dist/
