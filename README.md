@@ -101,7 +101,7 @@ the second value represents the averaged EEG signal within the range of 0.35-0.4
 The parameter **d_model** represents the number of expected features in the encoder input and was set to 32. 
 The reason for selecting 32 is the same as for the LSTM model setting the parameter **hid_channels** to 32. 
 
-The parameter **num_layer** was set to 2, as used by [4] for document classification 
+The parameter **num_layer** was set to 2, as used by [Pappagari et al.][4] for document classification 
 using a small Transformer architecture.
 
 ---
@@ -121,3 +121,7 @@ If you use our dataset, please cite:
   [3]: https://drive.proton.me/urls/2TWQXJW2C4#9G2lbi7SuGFE
   [4]: https://arxiv.org/abs/1910.10781
   [5]: https://osf.io/xh3g5/
+
+References:
+
+- R. Pappagari, P. Zelasko, J. Villalba, Y. Carmiel and N. Dehak, "Hierarchical Transformers for Long Document Classification," 2019 IEEE Automatic Speech Recognition and Understanding Workshop (ASRU), Singapore, 2019, pp. 838-844, doi: 10.1109/ASRU46091.2019.9003958.
