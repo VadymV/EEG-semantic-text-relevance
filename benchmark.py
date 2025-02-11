@@ -33,12 +33,12 @@ import torch
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import LeaveOneGroupOut
 
-from src.data_operations.loader_sentences import MAX_SENTENCE_LENGTH, \
+from src.releegance.data_operations.loader_sentences import MAX_SENTENCE_LENGTH, \
     DatasetSentences
-from src.data_operations.loader_words import DatasetWords
-from src.misc.utils import create_args, set_logging, set_seed
-from src.models import Models
-from src.trainer.trainer import train, test
+from src.releegance.data_operations.loader_words import DatasetWords
+from src.releegance.misc.utils import create_args, set_logging, set_seed
+from src.releegance.models import Models
+from src.releegance.trainer.trainer import train, test
 
 _BATCH_SIZE = 30
 T = TypeVar("T")

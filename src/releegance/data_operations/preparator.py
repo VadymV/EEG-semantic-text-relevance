@@ -11,8 +11,8 @@ import mne
 import numpy as np
 import pandas as pd
 
-from src.misc import utils
-from src.misc.utils import Relevance
+from src.releegance.misc import utils
+from src.releegance.misc.utils import Relevance
 
 CHANNELS = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC5', 'FC1', 'FC2',
             'FC6', 'T7', 'C3', 'Cz', 'C4', 'T8', 'TP9', 'CP5', 'CP1', 'CP2',

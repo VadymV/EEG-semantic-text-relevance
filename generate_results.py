@@ -23,13 +23,16 @@ import glob
 import logging
 import os
 
+import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch.nn
+from matplotlib import pyplot as plt
 from torch import tensor
 from torchmetrics.classification import BinaryCohenKappa, BinaryPrecision, \
     BinaryRecall, BinaryMatthewsCorrCoef, BinaryAUROC
 
-from src.misc.utils import set_logging, set_seed, create_args
+from src.releegance.misc.utils import set_logging, set_seed, create_args
 
 
 def run(file_pattern: str, args: argparse.Namespace):
@@ -39,6 +42,10 @@ def run(file_pattern: str, args: argparse.Namespace):
     if not filepaths:
         logging.warning('No files found. Quitting...')
         return
+    if file_pattern.startswith("s"):
+        level = "sentence"
+    if file_pattern.startswith("w"):
+        level = "word"
     results = []
     for fp in filepaths:
         with open(fp, 'r') as f:
@@ -105,6 +112,67 @@ def run(file_pattern: str, args: argparse.Namespace):
                 latex_output += f'& {mean:.2f} ({std:.2f}) '
 
         logging.info(latex_output)
+
+
+    strategy_dependent = np.empty((5, 15))
+    strategy_independent = np.empty((5, 15))
+    for participant_id, participant in enumerate(metrics['user'].unique()):
+        d = metrics[(metrics['user'] == participant)]
+        for model_id, model in enumerate(metrics.model.unique()):
+            for strategy_id, strategy in enumerate(metrics.strategy.unique()[::-1]):
+                for metric in ['auc', 'precision', 'recall']:
+                    mean = d[(d['model'] == model) & (
+                            d['strategy'] == strategy)][
+                        metric].mean()
+
+                    if metric == 'auc' and strategy == "participant-dependent":
+                        strategy_dependent[model_id, participant_id] = round(mean, 2)
+
+                    if metric == 'auc' and strategy == "participant-independent":
+                        strategy_independent[model_id, participant_id] = round(mean, 2)
+
+    cmap = sns.cubehelix_palette(light=1, gamma=.6, n_colors=50, rot=-0.4, as_cmap=True)
+    sns.set(font_scale=2)
+    sns.set_theme(style="white")
+
+    model_dict = {'eegnet': 'EEGNet', 'lda': 'LDA', 'lr': 'LR',
+                  'lstm': 'LSTM', 'uercm': 'UERCM'}
+
+    model_names = []
+    for model_ in metrics['model'].unique():
+        model_names.append(model_dict[model_])
+
+    fig, axes = plt.subplots(2, 1, sharex=True,
+                             gridspec_kw={'hspace': 0.02, 'wspace': 0.02})
+
+    # Plot within-subject
+    axes[0].imshow(strategy_dependent, cmap=cmap)
+    for (i, j), z in np.ndenumerate(strategy_dependent):
+        axes[0].text(j, i, f'{z}', ha='center', va='center', size=10)
+    axes[0].set_yticks(np.arange(len(model_names)))
+    axes[0].set_yticklabels(model_names)
+    axes[0].annotate("Within-subject", xy=(1.02, 0.5), xycoords='axes fraction', fontsize=14,
+                ha='left', va='center', rotation=90)
+
+    # Plot cross-subject
+    axes[1].imshow(strategy_independent, cmap=cmap)
+    for (i, j), z in np.ndenumerate(strategy_independent):
+        axes[1].text(j, i, f'{z}', ha='center', va='center', size=10)
+    axes[1].set_yticks(np.arange(len(model_names)))
+    axes[1].set_yticklabels(model_names)
+    axes[1].annotate("Cross-subject", xy=(1.02, 0.5), xycoords='axes fraction', fontsize=14,
+                ha='left', va='center', rotation=90)
+    axes[1].annotate("Model", xy=(-0.2, 1.0), xycoords='axes fraction',
+                     fontsize=14,
+                     ha='left', va='center', rotation=90)
+
+    plt.xticks(np.arange(len(metrics['user'].unique())),
+               metrics['user'].unique())
+    plt.xticks(rotation=90)
+    plt.xlabel('Participant', fontsize=14, labelpad=10)
+
+    plt.savefig(f"figures/results_participants_{level}.pdf",
+                format="pdf", bbox_inches="tight")
 
 
 if __name__ == '__main__':

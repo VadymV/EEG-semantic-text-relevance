@@ -13,11 +13,11 @@ from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import DataLoader, Subset
 from torchmetrics import MetricCollection
 
-from src.data_operations.loader_sentences import \
+from src.releegance.data_operations.loader_sentences import \
     DatasetSentences
-from src.data_operations.loader_words import \
+from src.releegance.data_operations.loader_words import \
     DatasetWords
-from src.data_operations.misc import get_data
+from src.releegance.data_operations.misc import get_data
 
 _EVALUATE_OUTPUT = List[Dict[str, float]]  # 1 dict per DataLoader
 T = TypeVar("T")

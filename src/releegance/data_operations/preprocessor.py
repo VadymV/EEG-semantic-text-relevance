@@ -15,8 +15,8 @@ from matplotlib import pyplot as plt
 from mne.epochs import EpochsFIF
 from nltk.stem.snowball import PorterStemmer
 
-from src.data_operations.preparator import CHANNELS
-from src.misc import utils
+from src.releegance.data_operations.preparator import CHANNELS
+from src.releegance.misc import utils
 
 
 def get_protocol_data(data_dir: str) -> dict:
@@ -660,7 +660,7 @@ def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=No
                                        )
     for item in axs.get_xticklabels():
         item.set_rotation(45)
-    plt.savefig("{}/plots/erp_{}.pdf".format(work_dir, file_id), format="pdf",
+    plt.savefig("{}/figures/erp_{}.pdf".format(work_dir, file_id), format="pdf",
                 bbox_inches="tight")
     plt.close()
 

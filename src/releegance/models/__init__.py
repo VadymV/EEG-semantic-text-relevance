@@ -5,14 +5,14 @@ Definition of all models.
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 
-from src.data_operations.loader_sentences import \
+from src.releegance.data_operations.loader_sentences import \
     CollatorLSTMSentence, CollatorEEGNetSentence, CollatorTransformerSentence, \
     CollatorSentence
-from src.data_operations.loader_words import CollatorLSTMWord, \
+from src.releegance.data_operations.loader_words import CollatorLSTMWord, \
     CollatorEEGNetWord, CollatorTransformerWord, CollatorWords
-from src.models.eegnet import EEGNet
-from src.models.lstm import LSTM
-from src.models.uercm import UERCM
+from src.releegance.models.eegnet import EEGNet
+from src.releegance.models.lstm import LSTM
+from src.releegance.models.uercm import UERCM
 
 
 class Models:

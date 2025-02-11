@@ -13,7 +13,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from src.data_operations.misc import load_data
+from src.releegance.data_operations.misc import load_data
 
 
 class DatasetWords(Dataset):

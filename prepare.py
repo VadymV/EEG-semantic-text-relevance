@@ -30,14 +30,12 @@ folder ``cleaned_data`` (preprocessed) will be created in the project_path.
 
 import logging
 
-from src.data_operations.preparator import DataPreparator
-from src.data_operations.preprocessor import DataPreprocessor, \
-    load_evoked_response, plot_erp
-from src.misc.utils import set_logging, set_seed, create_args
+from src.releegance.data_operations.preparator import DataPreparator
+from src.releegance.data_operations.preprocessor import DataPreprocessor
+from src.releegance.misc.utils import set_logging, set_seed, create_args
 
 
 def run():
-    plot = False  # Should the ERP figures be produced? Only applicable for the benchmark data
     parser = create_args(seeds_args=False,
                          benchmark_args=False,
                          data_type_args=True)
@@ -53,57 +51,18 @@ def run():
     data_preprocessor.create_epochs()
     data_preprocessor.clean()
 
+    # Data preparation:
+    data_preparator = DataPreparator(
+        data_dir=data_preprocessor.cleaned_data_dir)
+
     if args.data_type == 'benchmark':
-        # Data preparation:
-        data_preparator = DataPreparator(
-            data_dir=data_preprocessor.cleaned_data_dir)
         data_preparator.prepare_data_for_benchmark()
-
-        if plot:
-            epochs = load_evoked_response(
-                dir_cleaned=data_preprocessor.cleaned_data_dir,
-                annotations=data_preparator.annotations,
-                average=False)
-            for electrode in epochs[0].ch_names:
-                epochs = load_evoked_response(
-                    dir_cleaned=data_preprocessor.cleaned_data_dir,
-                    annotations=data_preparator.annotations,
-                    average=False)
-                plot_erp(work_dir=args.project_path,
-                         epos=epochs,
-                         title=f'{electrode} electrode.',
-                         queries=['annotation == 1',
-                                  'annotation == 0'],
-                         file_id=electrode,
-                         ch_names=[electrode],
-                         l=['Semantically relevant',
-                            'Semantically irrelevant'])
-
-            relevant = load_evoked_response(
-                dir_cleaned=data_preprocessor.cleaned_data_dir,
-                filter_flag='annotation == 1',
-                annotations=data_preparator.annotations)
-            relevant.plot_joint(picks='eeg', times=[0.3, 0.4, 0.6],
-                                title=None,
-                                show=False,
-                                ts_args=dict(ylim=dict(eeg=[-4.5, 5]),
-                                             gfp=True))
-
-            irrelevant = load_evoked_response(
-                dir_cleaned=data_preprocessor.cleaned_data_dir,
-                filter_flag='annotation == 0',
-                annotations=data_preparator.annotations)
-            irrelevant.plot_joint(picks='eeg', times=[0.3, 0.4, 0.6],
-                                  title=None,
-                                  ts_args=dict(ylim=dict(eeg=[-4.5, 5]),
-                                               gfp=True))
-
-        data_preprocessor.remove_filter_folder()
-        data_preprocessor.remove_epoched_folder()
-        data_preprocessor.remove_cleaned_folder()
     else:
-        data_preprocessor.remove_filter_folder()
-        data_preprocessor.remove_epoched_folder()
+        data_preparator.save_cleaned_data()
+
+    data_preprocessor.remove_filter_folder()
+    data_preprocessor.remove_epoched_folder()
+    data_preprocessor.remove_cleaned_folder()
 
 
 if __name__ == '__main__':

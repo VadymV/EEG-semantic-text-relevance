@@ -3,3 +3,14 @@
 /data/
 /lightning_logs/
 /dist/
+/figures/dist_topic.pdf
+/figures/dist_topic_words.pdf
+/figures/dist_word_lengths.pdf
+/figures/interestingness.pdf
+/figures/overlap_all_words.pdf
+/figures/overlap_sem_words.pdf
+/figures/pre-knowledge.pdf
+/figures/results_participants.pdf
+/figures/results_participants_sentence.pdf
+/figures/results_participants_word.pdf
+/figures/sem_words.pdf
