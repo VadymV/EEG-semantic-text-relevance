@@ -46,6 +46,11 @@ Scores are saved to a ``logs_results.log`` file and outputted in a terminal wind
 poetry run python generate_results.py --project_path=path
 ```
 
+## Generate figures
+```py
+poetry run python generate_figures.py --project_path=path
+```
+
 ## Benchmark results:
 
 ![Benchmark results](results.PNG)
