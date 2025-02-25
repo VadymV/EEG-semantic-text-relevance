@@ -3,6 +3,7 @@ Miscellaneous utilities.
 """
 
 import argparse
+import copy
 import logging
 import os
 import random
@@ -120,3 +121,21 @@ class Relevance(Enum):
     """
     RELEVANT = 1
     IRRELEVANT = 0
+
+def _perm_fun(x: np.ndarray, n_test: int, n_control: int):
+    n = n_test + n_control
+    idx_control = set(random.sample(range(n), n_control))
+    idx_test = set(range(n)) - idx_control
+    return x[list(idx_test)].mean() - x[list(idx_control)].mean()
+
+def run_permutation_test(control, test):
+    a = copy.deepcopy(control)
+    b = copy.deepcopy(test)
+    observed_difference = np.mean(b) - np.mean(a)
+    perm_diffs = [
+        _perm_fun(np.concatenate((a, b), axis=None), a.shape[0], b.shape[0]) for
+        _ in range(10000)]
+    p = np.mean([diff > observed_difference for diff in perm_diffs])
+    print("P value: {:.4f}".format(p))
+
+    return p

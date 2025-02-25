@@ -17,6 +17,7 @@ from nltk.stem.snowball import PorterStemmer
 
 from src.releegance.data_operations.preparator import CHANNELS
 from src.releegance.misc import utils
+from src.releegance.misc.utils import run_permutation_test
 
 
 def get_protocol_data(data_dir: str) -> dict:
@@ -623,7 +624,7 @@ def load_evoked_response(dir_cleaned: str,
     return result
 
 
-def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=None, **kwargs):
+def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=None, show_legend=True, show_sensors=True, **kwargs):
     """
     Plots ERPs.
     """
@@ -639,9 +640,18 @@ def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=No
         evos[l[1]].append(epo[queries[1]].average(picks=chi).crop(tmin=0, tmax=1))
 
 
+    run_permutation_test(
+        test=np.mean([x.get_data().squeeze() for x in list(evos.items())[0][1]],
+                     axis=0),
+        control=np.mean(
+            [x.get_data().squeeze() for x in list(evos.items())[1][1]], axis=0))
+
+
     import matplotlib as mpl
 
     mpl.rcParams.update(mpl.rcParamsDefault)
+    font = {'size': 17}
+    mpl.rc('font', **font)
     _, axs = plt.subplots(nrows=1,
                           ncols=1,
                           )
@@ -653,9 +663,10 @@ def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=No
                                                l[0]: 'xkcd:green',
                                                },
                                        linestyles=['solid', 'dotted'],
-                                       ylim=dict(eeg=[-5, 8]),
+                                       ylim=dict(eeg=[-4, 3]),
                                        show=False,
-                                       legend='upper center', show_sensors='upper left',
+                                       legend='upper center' if show_legend else False,
+                                       show_sensors='lower left' if show_sensors else False,
                                        axes=axs
                                        )
     for item in axs.get_xticklabels():
@@ -663,6 +674,7 @@ def plot_erp(work_dir, epos, queries, file_id, ch_names=['Pz'], l=None, title=No
     plt.savefig("{}/figures/erp_{}.pdf".format(work_dir, file_id), format="pdf",
                 bbox_inches="tight")
     plt.close()
+    mpl.rcParams.update(mpl.rcParamsDefault)
 
 # The following two functions are for preparing
 # the data for statistical analysis. They are not used for benchmark.

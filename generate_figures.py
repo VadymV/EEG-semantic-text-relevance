@@ -1,5 +1,6 @@
 import os
 
+import mne
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -10,7 +11,8 @@ from src.releegance.data_operations.preprocessor import DataPreprocessor, \
     load_evoked_response, plot_erp
 from src.releegance.misc.utils import create_args, set_seed
 
-def erps(project_path):
+
+def erps_electrodes(project_path):
     data_preprocessor = DataPreprocessor(project_path=project_path)
     data_preparator = DataPreparator(
         data_dir=data_preprocessor.cleaned_data_dir)
@@ -30,27 +32,92 @@ def erps(project_path):
                           'annotation == 0'],
                  file_id=electrode,
                  ch_names=[electrode],
-                 l=['Semantically relevant',
-                    'Semantically irrelevant'])
+                 l=['Semantically relevant words',
+                    'Semantically irrelevant words'])
 
-    relevant = load_evoked_response(
+
+def erps_word_level_sentence_level(project_path):
+    data_preprocessor = DataPreprocessor(project_path=project_path)
+    data_preparator = DataPreparator(
+        data_dir=data_preprocessor.cleaned_data_dir)
+
+    epochs = load_evoked_response(
+        dir_cleaned=data_preprocessor.cleaned_data_dir,
+        annotations=data_preparator.annotations,
+        average=False)
+    plot_erp(work_dir=project_path,
+             epos=epochs,
+             ch_names=['Pz'],
+             title='Pz electrode',
+             queries=['selected_topic == topic', 'selected_topic != topic'],
+             file_id="semantic_relevance_sentences",
+             l=['Semantically relevant sentences',
+                'Semantically irrelevant sentences'])
+
+    plot_erp(work_dir=project_path,
+             epos=epochs,
+             ch_names=['Pz'],
+             title='Pz electrode',
+             queries=['semantic_relevance == 1', 'semantic_relevance == 0'],
+             file_id="semantic_relevance_words",
+             l=['Semantically relevant words', 'Semantically irrelevant words'])
+
+
+def erps_differences(project_path):
+    data_preprocessor = DataPreprocessor(project_path=project_path)
+    data_preparator = DataPreparator(
+        data_dir=data_preprocessor.cleaned_data_dir)
+
+    channels = ['F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4']
+
+    relevant_words = load_evoked_response(
         dir_cleaned=data_preprocessor.cleaned_data_dir,
         filter_flag='annotation == 1',
-        annotations=data_preparator.annotations)
-    relevant.plot_joint(picks='eeg', times=[0.3, 0.4, 0.6],
-                        title=None,
-                        show=False,
-                        ts_args=dict(ylim=dict(eeg=[-4.5, 5]),
-                                     gfp=True))
+        annotations=data_preparator.annotations).pick_channels(channels)
+    relevant_sentences = load_evoked_response(
+        dir_cleaned=data_preprocessor.cleaned_data_dir,
+        filter_flag='selected_topic == topic',
+        annotations=data_preparator.annotations).pick_channels(channels)
 
-    irrelevant = load_evoked_response(
+    irrelevant_words = load_evoked_response(
         dir_cleaned=data_preprocessor.cleaned_data_dir,
         filter_flag='annotation == 0',
-        annotations=data_preparator.annotations)
-    irrelevant.plot_joint(picks='eeg', times=[0.3, 0.4, 0.6],
-                          title=None,
-                          ts_args=dict(ylim=dict(eeg=[-4.5, 5]),
-                                       gfp=True))
+        annotations=data_preparator.annotations).pick_channels(channels)
+    irrelevant_sentences = load_evoked_response(
+        dir_cleaned=data_preprocessor.cleaned_data_dir,
+        filter_flag='selected_topic != topic',
+        annotations=data_preparator.annotations).pick_channels(channels)
+
+    combined_words = mne.combine_evoked([relevant_words, irrelevant_words], weights=[1, -1])
+    combined_sentences = mne.combine_evoked([relevant_sentences, irrelevant_sentences], weights=[1, -1])
+
+    import matplotlib as mpl
+    mpl.rcParams.update(mpl.rcParamsDefault)
+    fig, axs = plt.subplots(figsize=(10, 3), nrows=1,
+                            ncols=4,
+                            gridspec_kw={'width_ratios': [6, 6, 6, 1]}
+                            )
+    plt.savefig("{}/figures/erp_diff_words.pdf".format(project_path), format="pdf",
+                bbox_inches="tight")
+    im = combined_words.plot_topomap(ch_type="eeg",
+                               times=[0.3, 0.4, 0.6],
+                               axes=axs,
+                               colorbar=True)
+    plt.savefig("{}/figures/erp_diff_words.pdf".format(project_path),
+                format="pdf",
+                bbox_inches="tight")
+    fig, axs = plt.subplots(figsize=(10, 3), nrows=1,
+                            ncols=4,
+                            gridspec_kw={'width_ratios': [6, 6, 6, 1]}
+                            )
+    im = combined_sentences.plot_topomap(ch_type="eeg",
+                                     times=[0.3, 0.4, 0.6],
+                                     axes=axs,
+                                     colorbar=True)
+    plt.savefig("{}/figures/erp_diff_sentences.pdf".format(project_path),
+                format="pdf",
+                bbox_inches="tight")
+
 
 def preknowledge(data):
     data = data['text'][
@@ -84,6 +151,7 @@ def preknowledge(data):
     plt.xlabel('Participant', fontsize=14, labelpad=10)
     plt.savefig("figures\pre-knowledge.pdf", format="pdf", bbox_inches="tight")
 
+
 def interestigness(data):
     data = data['text'][
         ['topic', 'pre-knowledge', 'interestingness',
@@ -115,7 +183,9 @@ def interestigness(data):
     plt.yticks(rotation=0, fontsize=8)
     plt.ylabel('Topic', fontsize=14)
     plt.xlabel('Participant', fontsize=14, labelpad=10)
-    plt.savefig("figures\interestingness.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("figures\interestingness.pdf", format="pdf",
+                bbox_inches="tight")
+
 
 def overlap_all_words(data):
     sns.set(font_scale=1)
@@ -140,9 +210,9 @@ def overlap_all_words(data):
     cmap = sns.cubehelix_palette(light=1, gamma=.6, n_colors=50, rot=-0.4,
                                  as_cmap=True)
     _ = sns.heatmap(shared_words, mask=mask, center=0, annot=True,
-                     linewidths=1,
-                     square=True, cmap=cmap, cbar_kws={"shrink": .5},
-                     annot_kws={"size": 6}, cbar=False)
+                    linewidths=1,
+                    square=True, cmap=cmap, cbar_kws={"shrink": .5},
+                    annot_kws={"size": 6}, cbar=False)
 
     x_labels = data['topic'].unique().tolist()
     y_labels = data['topic'].unique().tolist()
@@ -154,7 +224,8 @@ def overlap_all_words(data):
     plt.yticks(np.arange(len(y_labels)), y_labels)
     plt.xticks(rotation=90, fontsize=6, ha="left")
     plt.yticks(rotation=0, fontsize=6, va="top")
-    plt.savefig("figures\overlap_all_words.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("figures\overlap_all_words.pdf", format="pdf",
+                bbox_inches="tight")
 
 
 def overlap_semantic_words(data):
@@ -289,13 +360,14 @@ if __name__ == '__main__':
     dataset = DatasetWords(
         dir_data=os.path.join(arguments.project_path,
                               'data_prepared_for_benchmark'))
+    erps_word_level_sentence_level(arguments.project_path)
+    erps_differences(arguments.project_path)
+    interestigness(dataset.data)
+    preknowledge(dataset.data)
     distribution_topic_words(dataset.data)
     distribution_topics(dataset.data)
     distribution_word_lengths(dataset.data)
     semantic_words(dataset.data)
     overlap_semantic_words(dataset.data)
     overlap_all_words(dataset.data)
-    interestigness(dataset.data)
-    preknowledge(dataset.data)
-    erps(arguments.project_path)
-
+    erps_electrodes(arguments.project_path)
