@@ -1,6 +1,10 @@
 # Code to reproduce the benchmark results of our paper *An EEG dataset of word-level brain responses for semantic text relevance*
 
+**The paper is submitted to ACM SIGIR 2025 and available currently only to the reviewers and AC/PC chairs.**
+
 **Short description of the dataset**: Electroencephalography (EEG) enables non-invasive, real-time tracking of brain activity during language processing. Existing EEG datasets focus either on natural reading or controlled psycholinguistic settings. To address this gap, we introduce a novel dataset of 23,270 time-locked (0.7s) word-level EEG recordings, where participants read text that was either semantically relevant or irrelevant to self-selected topics. We benchmark two evaluation protocols — participant-independent and participant-dependent — on word and sentence relevance prediction tasks, using five models. Our dataset and code are openly available, supporting advancements in language relevance research, psycholinguistics, and brain-computer interface (BCI) systems for real-time semantic detection.
+
+**The raw EEG data and the datasheet are available in our dataset repository: https://osf.io/xh3g5/.**
 
 ---
 
@@ -40,6 +44,11 @@ Scores are saved to a ``logs_results.log`` file and outputted in a terminal wind
 
 ```py
 poetry run python generate_results.py --project_path=path
+```
+
+## Generate figures
+```py
+poetry run python generate_figures.py --project_path=path
 ```
 
 ## Benchmark results:
