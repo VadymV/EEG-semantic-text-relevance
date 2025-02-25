@@ -4,7 +4,7 @@
 
 **Short description of the dataset**: Electroencephalography (EEG) enables non-invasive, real-time tracking of brain activity during language processing. Existing EEG datasets focus either on natural reading or controlled psycholinguistic settings. To address this gap, we introduce a novel dataset of 23,270 time-locked (0.7s) word-level EEG recordings, where participants read text that was either semantically relevant or irrelevant to self-selected topics. We benchmark two evaluation protocols — participant-independent and participant-dependent — on word and sentence relevance prediction tasks, using five models. Our dataset and code are openly available, supporting advancements in language relevance research, psycholinguistics, and brain-computer interface (BCI) systems for real-time semantic detection.
 
-**The raw EEG data and the datasheet are available at https://osf.io/xh3g5/.**
+**The raw EEG data and the datasheet are available in our dataset repository: https://osf.io/xh3g5/.**
 
 ---
 
