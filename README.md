@@ -131,6 +131,10 @@ If you use our dataset, please cite:
   [4]: https://arxiv.org/abs/1910.10781
   [5]: https://osf.io/xh3g5/
 
+Issues:
+- Currently, **src/** is the part of the installed package. After paper acceptance, it will not be a part of the package
+(i.e., the pyproject.toml will contain ``packages = [{include = "releegance", from = "src"}]``).
+
 References:
 
 - R. Pappagari, P. Zelasko, J. Villalba, Y. Carmiel and N. Dehak, "Hierarchical Transformers for Long Document Classification," 2019 IEEE Automatic Speech Recognition and Understanding Workshop (ASRU), Singapore, 2019, pp. 838-844, doi: 10.1109/ASRU46091.2019.9003958.
