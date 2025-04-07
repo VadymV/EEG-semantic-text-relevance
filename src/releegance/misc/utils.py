@@ -139,3 +139,34 @@ def run_permutation_test(control, test):
     print("P value: {:.4f}".format(p))
 
     return p
+
+
+def calculate_ratio_pos_neg(positive_count, negative_count, count):
+    """
+    Calculates the negative sampling rate.
+    Args:
+        positive_count: Positive count.
+        negative_count: Negative count.
+        count: Total count.
+
+    Returns:
+        Negative sampling rate.
+    """
+    return (positive_count / count) / (negative_count / count)
+
+
+
+def calibrate_probability(
+    p, ratio_pos_neg
+):
+    """
+    Probability values are calibrated. Reason: a threshold of 0.5 is desired.
+    For example, if the positive class has 0.3 chance of occurring in the data and the negative class 0.7, then
+    0.3 will likely represent the average probability.
+    However, we want to preserve the threshold 0.5 as the natural choice, thus the calibration process is applied.
+    Here, 0.3 will be mapped to 0.5.
+    :param p: Uncalibrated probability.
+    :param ratio_pos_neg: The ratio of positives to negatives.
+    :return: The calibrated probability.
+    """
+    return p / (p + (1 - p) * ratio_pos_neg)

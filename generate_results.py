@@ -32,7 +32,10 @@ from torch import tensor
 from torchmetrics.classification import BinaryCohenKappa, BinaryPrecision, \
     BinaryRecall, BinaryMatthewsCorrCoef, BinaryAUROC, BinaryF1Score
 
-from src.releegance.misc.utils import set_logging, set_seed, create_args
+from src.releegance.misc.utils import set_logging, set_seed, create_args, \
+    calibrate_probability
+
+_grouping_columns = ["seed", "user", "model", "strategy", "reading_task"]
 
 
 def run(file_pattern: str, args: argparse.Namespace, axes):
@@ -43,10 +46,8 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
         logging.warning('No files found. Quitting...')
         return
     if file_pattern.startswith("s"):
-        level = "sentence"
         column = 1
     if file_pattern.startswith("w"):
-        level = "word"
         column = 0
     results = []
     for fp in filepaths:
@@ -58,12 +59,14 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     # Apply sigmoid to predictions based on the model type:
     mask = (results['model'].isin(['eegnet', 'lstm', 'uercm']))
     masked_results = results.loc[mask]
+    sigmoid_fn = torch.nn.Sigmoid()
     results.loc[mask, 'predictions'] = masked_results['predictions'].apply(
-        lambda x: torch.nn.Sigmoid()(torch.FloatTensor([x])).tolist().pop())
+        lambda x: sigmoid_fn(torch.FloatTensor([x])).tolist().pop())
+    if file_pattern.startswith("w"):
+        results['predictions'] = results.apply(lambda x: calibrate_probability(x['predictions'], x['ratio_pos_neg']), axis=1) # TODO: apply?
 
     # Calculate classification metrics:
-    groups = results.groupby(
-        ['seed', 'user', 'model', 'strategy'])
+    groups = results.groupby(_grouping_columns)
     mcc = groups.apply(
         lambda x: BinaryMatthewsCorrCoef()(tensor(x.predictions.tolist()),
                                            tensor(x.targets.tolist())).item(),
@@ -101,11 +104,11 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     auc.rename(columns={0: 'auc'}, inplace=True)
 
     # Concatenate metrics:
-    metrics = mcc.merge(precision, on=['seed', 'user', 'model', 'strategy'])
-    metrics = metrics.merge(kappa, on=['seed', 'user', 'model', 'strategy'])
-    metrics = metrics.merge(recall, on=['seed', 'user', 'model', 'strategy'])
-    metrics = metrics.merge(auc, on=['seed', 'user', 'model', 'strategy'])
-    metrics = metrics.merge(f1, on=['seed', 'user', 'model', 'strategy'])
+    metrics = mcc.merge(precision, on=_grouping_columns)
+    metrics = metrics.merge(kappa, on=_grouping_columns)
+    metrics = metrics.merge(recall, on=_grouping_columns)
+    metrics = metrics.merge(auc, on=_grouping_columns)
+    metrics = metrics.merge(f1, on=_grouping_columns)
 
     for model in metrics.model.unique():
         latex_output = ''
@@ -123,6 +126,12 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
 
         logging.info(latex_output)
 
+    num_models = len(metrics['model'].unique())
+    num_participants = len(metrics['user'].unique())
+    if num_models != 5 and num_participants != 15:
+        raise ValueError(
+            "The number of models should be 5, and the number of participants should be 15."
+        )
     strategy_dependent = np.empty((5, 15))
     strategy_independent = np.empty((5, 15))
     for participant_id, participant in enumerate(metrics['user'].unique()):

@@ -5,7 +5,7 @@ Loader for sentences.
 import os
 import re
 from collections import OrderedDict
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
@@ -151,7 +151,7 @@ class DatasetSentences(Dataset):
                      'text': sentence_data}
         return data_dict
 
-    def __getitem__(self, idx) -> Tuple[Tensor, Tensor, pd.DataFrame]:
+    def __getitem__(self, idx) -> Tuple[List[Tensor], List[Tensor], pd.DataFrame]:
         """
         Returns the item at index idx.
 

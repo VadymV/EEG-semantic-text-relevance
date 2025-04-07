@@ -52,3 +52,5 @@ def load_data(folder_path: str, file_name: str) -> Tuple[Tensor, pd.DataFrame]:
         os.path.join(folder_path, '.'.join([file_name, 'pkl'])))
 
     return eeg_data, text_data
+
+

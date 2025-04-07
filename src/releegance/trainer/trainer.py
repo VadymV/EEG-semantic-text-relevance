@@ -226,6 +226,7 @@ class ClassifierTrainer(pl.LightningModule):
                              accelerator=self.accelerator,
                              max_epochs=max_epochs,
                              num_sanity_val_steps=0,
+                             gradient_clip_val=1.0,
                              *args,
                              **kwargs)
         return trainer.fit(self, train_loader, val_loader)
