@@ -132,7 +132,7 @@ If you use our dataset, please cite:
   [5]: https://osf.io/xh3g5/
 
 Issues:
-- Currently, **src/** is the part of the installed package. After paper acceptance, it will not be a part of the package
+- Currently, **src/** is the part of the installed package. This issue will be resolved and will not be a part of the package
 (i.e., the pyproject.toml will contain ``packages = [{include = "releegance", from = "src"}]``).
 
 References:
