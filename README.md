@@ -117,7 +117,7 @@ using a small Transformer architecture.
 
 If you use our dataset, please cite:
 ```
-@unpublished{Gryshchuk2025_EEG-dataset,
+@misc{Gryshchuk2025_EEG-dataset,
    author = {Vadym Gryshchuk and Michiel Spapé and Maria Maistro and Christina Lioma and Tuukka Ruotsalo},
    title = {An EEG dataset of word-level brain responses for semantic text relevance},
    year = {2025},
