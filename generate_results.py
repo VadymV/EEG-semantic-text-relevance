@@ -29,21 +29,30 @@ import seaborn as sns
 import torch.nn
 from matplotlib import pyplot as plt
 from torch import tensor
-from torchmetrics.classification import BinaryCohenKappa, BinaryPrecision, \
-    BinaryRecall, BinaryMatthewsCorrCoef, BinaryAUROC, BinaryF1Score
+from torchmetrics.classification import (
+    BinaryCohenKappa,
+    BinaryPrecision,
+    BinaryRecall,
+    BinaryMatthewsCorrCoef,
+    BinaryAUROC,
+    BinaryF1Score,
+)
 
-from src.releegance.misc.utils import set_logging, set_seed, create_args, \
-    calibrate_probability
+from src.releegance.misc.utils import (
+    set_logging,
+    set_seed,
+    create_args,
+    calibrate_probability,
+)
 
-_grouping_columns = ["seed", "user", "model", "strategy", "reading_task"]
+_grouping_columns = ["seed", "user", "model", "strategy"]
 
 
 def run(file_pattern: str, args: argparse.Namespace, axes):
     # Read predictions:
-    filepaths = glob.glob(
-        os.path.join(args.project_path, file_pattern))
+    filepaths = glob.glob(os.path.join(args.project_path, file_pattern))
     if not filepaths:
-        logging.warning('No files found. Quitting...')
+        logging.warning("No files found. Quitting...")
         return
     if file_pattern.startswith("s"):
         column = 1
@@ -51,57 +60,73 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
         column = 0
     results = []
     for fp in filepaths:
-        with open(fp, 'r') as f:
-            logging.info('Reading %s', fp)
+        with open(fp, "r") as f:
+            logging.info("Reading %s", fp)
             results.append(pd.read_pickle(f.name))
     results = pd.concat(results)
 
     # Apply sigmoid to predictions based on the model type:
-    mask = (results['model'].isin(['eegnet', 'lstm', 'uercm']))
+    mask = results["model"].isin(["eegnet", "lstm", "uercm"])
     masked_results = results.loc[mask]
     sigmoid_fn = torch.nn.Sigmoid()
-    results.loc[mask, 'predictions'] = masked_results['predictions'].apply(
-        lambda x: sigmoid_fn(torch.FloatTensor([x])).tolist().pop())
+    results.loc[mask, "predictions"] = masked_results["predictions"].apply(
+        lambda x: sigmoid_fn(torch.FloatTensor([x])).tolist().pop()
+    )
     if file_pattern.startswith("w"):
-        results['predictions'] = results.apply(lambda x: calibrate_probability(x['predictions'], x['ratio_pos_neg']), axis=1) # TODO: apply?
+        results["predictions"] = results.apply(
+            lambda x: calibrate_probability(x["predictions"], x["ratio_pos_neg"]),
+            axis=1,
+        )
 
     # Calculate classification metrics:
     groups = results.groupby(_grouping_columns)
     mcc = groups.apply(
-        lambda x: BinaryMatthewsCorrCoef()(tensor(x.predictions.tolist()),
-                                           tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    mcc.rename(columns={0: 'mcc'}, inplace=True)
+        lambda x: BinaryMatthewsCorrCoef()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    mcc.rename(columns={0: "mcc"}, inplace=True)
 
     f1 = groups.apply(
-        lambda x: BinaryF1Score()(tensor(x.predictions.tolist()),
-                                  tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    f1.rename(columns={0: 'f1'}, inplace=True)
+        lambda x: BinaryF1Score()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    f1.rename(columns={0: "f1"}, inplace=True)
 
     kappa = groups.apply(
-        lambda x: BinaryCohenKappa()(tensor(x.predictions.tolist()),
-                                     tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    kappa.rename(columns={0: 'kappa'}, inplace=True)
+        lambda x: BinaryCohenKappa()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    kappa.rename(columns={0: "kappa"}, inplace=True)
 
     precision = groups.apply(
-        lambda x: BinaryPrecision()(tensor(x.predictions.tolist()),
-                                    tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    precision.rename(columns={0: 'precision'}, inplace=True)
+        lambda x: BinaryPrecision()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    precision.rename(columns={0: "precision"}, inplace=True)
 
     recall = groups.apply(
-        lambda x: BinaryRecall()(tensor(x.predictions.tolist()),
-                                 tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    recall.rename(columns={0: 'recall'}, inplace=True)
+        lambda x: BinaryRecall()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    recall.rename(columns={0: "recall"}, inplace=True)
 
     auc = groups.apply(
-        lambda x: BinaryAUROC()(tensor(x.predictions.tolist()),
-                                tensor(x.targets.tolist())).item(),
-        include_groups=False).reset_index()
-    auc.rename(columns={0: 'auc'}, inplace=True)
+        lambda x: BinaryAUROC()(
+            tensor(x.predictions.tolist()), tensor(x.targets.tolist())
+        ).item(),
+        include_groups=False,
+    ).reset_index()
+    auc.rename(columns={0: "auc"}, inplace=True)
 
     # Concatenate metrics:
     metrics = mcc.merge(precision, on=_grouping_columns)
@@ -111,119 +136,146 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     metrics = metrics.merge(f1, on=_grouping_columns)
 
     for model in metrics.model.unique():
-        latex_output = ''
+        latex_output = ""
         for strategy in metrics.strategy.unique()[::-1]:
-            logging.info('\n\nModel: %s, Strategy: %s', model, strategy)
-            for metric in ['auc', 'precision', 'recall', 'f1']:
-                mean = metrics[(metrics['model'] == model) & (
-                        metrics['strategy'] == strategy)][
-                    metric].mean()
-                std = metrics[(metrics['model'] == model) & (
-                        metrics['strategy'] == strategy)][
-                    metric].std()
-                logging.info('%s: %.2f +- %.2f', metric, mean, std)
-                latex_output += f'& {mean:.2f} ({std:.2f}) '
+            logging.info("\n\nModel: %s, Strategy: %s", model, strategy)
+            for metric in ["auc", "precision", "recall", "f1"]:
+                mean = metrics[
+                    (metrics["model"] == model) & (metrics["strategy"] == strategy)
+                ][metric].mean()
+                std = metrics[
+                    (metrics["model"] == model) & (metrics["strategy"] == strategy)
+                ][metric].std()
+                logging.info("%s: %.2f +- %.2f", metric, mean, std)
+                latex_output += f"& {mean:.2f} ({std:.2f}) "
 
         logging.info(latex_output)
 
-    num_models = len(metrics['model'].unique())
-    num_participants = len(metrics['user'].unique())
+    num_models = len(metrics["model"].unique())
+    num_participants = len(metrics["user"].unique())
     if num_models != 5 and num_participants != 15:
         raise ValueError(
             "The number of models should be 5, and the number of participants should be 15."
         )
     strategy_dependent = np.empty((5, 15))
     strategy_independent = np.empty((5, 15))
-    for participant_id, participant in enumerate(metrics['user'].unique()):
-        d = metrics[(metrics['user'] == participant)]
+    for participant_id, participant in enumerate(metrics["user"].unique()):
+        d = metrics[(metrics["user"] == participant)]
         for model_id, model in enumerate(metrics.model.unique()):
-            for strategy_id, strategy in enumerate(
-                    metrics.strategy.unique()[::-1]):
-                for metric in ['auc', 'precision', 'recall']:
-                    mean = d[(d['model'] == model) & (
-                            d['strategy'] == strategy)][
-                        metric].mean()
+            for strategy_id, strategy in enumerate(metrics.strategy.unique()[::-1]):
+                for metric in ["auc", "precision", "recall"]:
+                    mean = d[(d["model"] == model) & (d["strategy"] == strategy)][
+                        metric
+                    ].mean()
 
-                    if metric == 'auc' and strategy == "participant-dependent":
-                        strategy_dependent[model_id, participant_id] = round(
-                            mean, 2)
+                    if metric == "auc" and strategy == "participant-dependent":
+                        strategy_dependent[model_id, participant_id] = round(mean, 2)
 
-                    if metric == 'auc' and strategy == "participant-independent":
-                        strategy_independent[model_id, participant_id] = round(
-                            mean, 2)
+                    if metric == "auc" and strategy == "participant-independent":
+                        strategy_independent[model_id, participant_id] = round(mean, 2)
 
     cmap = sns.cubehelix_palette(light=1, gamma=.6, n_colors=50, rot=-0.4,
                                  as_cmap=True)
     sns.set(font_scale=2)
     sns.set_theme(style="white")
+    
+    vmin, vmax = 0.4, 0.95
 
-    model_dict = {'eegnet': 'EEGNet', 'lda': 'LDA', 'lr': 'LR',
-                  'lstm': 'LSTM', 'uercm': 'UERCM'}
+    model_dict = {
+        "eegnet": "EEGNet",
+        "lda": "LDA",
+        "lr": "LR",
+        "lstm": "LSTM",
+        "uercm": "UERCM",
+    }
 
     model_names = []
-    for model_ in metrics['model'].unique():
+    for model_ in metrics["model"].unique():
         model_names.append(model_dict[model_])
 
     # Plot within-subject
-    axes[0, column].imshow(strategy_dependent, cmap=cmap)
+    axes[0, column].imshow(strategy_dependent, cmap=cmap, vmin=vmin, vmax=vmax)
     for (i, j), z in np.ndenumerate(strategy_dependent):
-        axes[0, column].text(j, i, f'{z}', ha='center', va='center', size=11)
+        color = "white" if z > 0.7 else "black"
+        axes[0, column].text(j, i, f"{z}", ha="center", va="center", size=11, color=color)
     if column == 0:
-        axes[0, column].set_title("Word relevance classification task",
-                                  fontsize=16)
+        axes[0, column].set_title("Word relevance classification task", fontsize=16)
         axes[0, column].set_yticks(np.arange(len(model_names)))
         axes[0, column].set_yticklabels(model_names, fontsize=14)
     if column == 1:
-        axes[0, column].set_title("Sentence relevance classification task",
-                                  fontsize=16)
-        axes[0, column].annotate("Within-subject", xy=(1.02, 0.5),
-                                 xycoords='axes fraction',
-                                 fontsize=16,
-                                 ha='left', va='center', rotation=90)
+        axes[0, column].set_title("Sentence relevance classification task", fontsize=16)
+        axes[0, column].annotate(
+            "Within-subject",
+            xy=(1.02, 0.5),
+            xycoords="axes fraction",
+            fontsize=16,
+            ha="left",
+            va="center",
+            rotation=90,
+        )
 
     # Plot cross-subject
-    axes[1, column].imshow(strategy_independent, cmap=cmap)
+    axes[1, column].imshow(strategy_independent, cmap=cmap, vmin=vmin, vmax=vmax)
     for (i, j), z in np.ndenumerate(strategy_independent):
-        axes[1, column].text(j, i, f'{z}', ha='center', va='center', size=10)
+        color = "white" if z > 0.7 else "black"
+        axes[1, column].text(j, i, f"{z}", ha="center", va="center", size=10, color=color)
     if column == 0:
         axes[1, column].set_yticks(np.arange(len(model_names)))
         axes[1, column].set_yticklabels(model_names, fontsize=14)
-        axes[1, column].annotate("Model", xy=(-0.22, 1.0),
-                                 xycoords='axes fraction',
-                                 fontsize=16,
-                                 ha='left', va='center', rotation=90)
+        axes[1, column].annotate(
+            "Model",
+            xy=(-0.22, 1.0),
+            xycoords="axes fraction",
+            fontsize=16,
+            ha="left",
+            va="center",
+            rotation=90,
+        )
     if column == 1:
-        axes[1, column].annotate("Cross-subject", xy=(1.02, 0.5),
-                                 xycoords='axes fraction',
-                                 fontsize=16,
-                                 ha='left', va='center', rotation=90)
-        axes[1, column].annotate("Participant's ID", xy=(-0.0, -0.65),
-                                 xycoords='axes fraction',
-                                 fontsize=16,
-                                 ha='center', va='bottom')
+        axes[1, column].annotate(
+            "Cross-subject",
+            xy=(1.02, 0.5),
+            xycoords="axes fraction",
+            fontsize=16,
+            ha="left",
+            va="center",
+            rotation=90,
+        )
+        axes[1, column].annotate(
+            "Participant's ID",
+            xy=(-0.0, -0.65),
+            xycoords="axes fraction",
+            fontsize=16,
+            ha="center",
+            va="bottom",
+        )
 
-    axes[1, column].set_xticks(np.arange(len(metrics['user'].unique())))
-    axes[1, column].set_xticklabels(metrics['user'].unique(), fontsize=14,
-                                    rotation=90)
+    axes[1, column].set_xticks(np.arange(len(metrics["user"].unique())))
+    axes[1, column].set_xticklabels(metrics["user"].unique(), fontsize=14, rotation=90)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = create_args(seeds_args=False, benchmark_args=False)
     args = parser.parse_args()
 
-    set_logging(args.project_path, file_name='logs_results')
+    set_logging(args.project_path, file_name="logs_results")
+    logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
     set_seed(1)
-    logging.info('Args: %s', args)
+    logging.info("Args: %s", args)
 
-    fig, axes = plt.subplots(figsize=(15, 5), nrows=2, ncols=2, sharex=True,
-                             sharey=True,
-                             gridspec_kw={'hspace': 0.02, 'wspace': 0.02})
+    fig, axes = plt.subplots(
+        figsize=(15, 5),
+        nrows=2,
+        ncols=2,
+        sharex=True,
+        sharey=True,
+        gridspec_kw={"hspace": 0.02, "wspace": 0.02},
+    )
 
-    logging.info('Generating results for word relevance...')
-    run(file_pattern='w_relevance_seed*.pkl', args=args, axes=axes)
+    logging.info("Generating results for word relevance...")
+    run(file_pattern="w_relevance_seed*.pkl", args=args, axes=axes)
 
-    logging.info('Generating results for sentence relevance...')
-    run(file_pattern='s_relevance_seed*.pkl', args=args, axes=axes)
+    logging.info("Generating results for sentence relevance...")
+    run(file_pattern="s_relevance_seed*.pkl", args=args, axes=axes)
 
-    plt.savefig(f"figures/results_participants.pdf",
-                format="pdf", bbox_inches="tight")
+    plt.savefig(f"figures/results_participants.pdf", format="pdf", bbox_inches="tight")
