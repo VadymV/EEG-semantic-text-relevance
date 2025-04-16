@@ -1,6 +1,6 @@
 # Code to reproduce the benchmark results of our paper *An EEG dataset of word-level brain responses for semantic text relevance*
 
-**The paper is submitted to ACM SIGIR 2025 and available currently only to the reviewers and AC/PC chairs.**
+**The paper is accepted to ACM SIGIR 2025**
 
 **Short description of the dataset**: Electroencephalography (EEG) enables non-invasive, real-time tracking of brain activity during language processing. Existing EEG datasets focus either on natural reading or controlled psycholinguistic settings. To address this gap, we introduce a novel dataset of 23,270 time-locked (0.7s) word-level EEG recordings, where participants read text that was either semantically relevant or irrelevant to self-selected topics. We benchmark two evaluation protocols — participant-independent and participant-dependent — on word and sentence relevance prediction tasks, using five models. Our dataset and code are openly available, supporting advancements in language relevance research, psycholinguistics, and brain-computer interface (BCI) systems for real-time semantic detection.
 
@@ -117,11 +117,11 @@ using a small Transformer architecture.
 
 If you use our dataset, please cite:
 ```
-@unpublished{Gryshchuk2025_EEG-dataset,
+@misc{Gryshchuk2025_EEG-dataset,
    author = {Vadym Gryshchuk and Michiel Spapé and Maria Maistro and Christina Lioma and Tuukka Ruotsalo},
    title = {An EEG dataset of word-level brain responses for semantic text relevance},
    year = {2025},
-   note = {submitted for publication}
+   note = {Accepted to ACM SIGIR 2025}
 }
 ```
 
@@ -132,7 +132,7 @@ If you use our dataset, please cite:
   [5]: https://osf.io/xh3g5/
 
 Issues:
-- Currently, **src/** is the part of the installed package. After paper acceptance, it will not be a part of the package
+- Currently, **src/** is the part of the installed package. This issue will be resolved and will not be a part of the package
 (i.e., the pyproject.toml will contain ``packages = [{include = "releegance", from = "src"}]``).
 
 References:
