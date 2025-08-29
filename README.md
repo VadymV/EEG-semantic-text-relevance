@@ -117,11 +117,20 @@ using a small Transformer architecture.
 
 If you use our dataset, please cite:
 ```
-@misc{Gryshchuk2025_EEG-dataset,
-   author = {Vadym Gryshchuk and Michiel Spapé and Maria Maistro and Christina Lioma and Tuukka Ruotsalo},
-   title = {An EEG dataset of word-level brain responses for semantic text relevance},
-   year = {2025},
-   note = {Accepted to ACM SIGIR 2025}
+@inproceedings{10.1145/3726302.3730289,
+author = {Gryshchuk, Vadym and Spap\'{e}, Michiel M. and Maistro, Maria and Lioma, Christina and Ruotsalo, Tuukka},
+title = {An EEG Dataset of Word-level Brain Responses for Semantic Text Relevance},
+year = {2025},
+isbn = {9798400715921},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+doi = {10.1145/3726302.3730289},
+booktitle = {Proceedings of the 48th International ACM SIGIR Conference on Research and Development in Information Retrieval},
+pages = {3422–3432},
+numpages = {11},
+keywords = {eeg, erp, semantic relevance, sentence relevance, word relevance, word-level brain responses},
+location = {Padua, Italy},
+series = {SIGIR '25}
 }
 ```
 
