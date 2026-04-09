@@ -10,11 +10,19 @@ Paper is accessible at: https://dl.acm.org/doi/10.1145/3726302.3730289
 
 ---
 
-## Configure the environment
-``poetry`` is used for dependency management (It is planned to replace *poetry* with *uv*).
-See how to install ``poetry`` [here][2].
+## Erratum
 
-After ``poetry`` is installed, run ``poetry install`` in the folder where the ``README.md`` file is located.
+*9 April 2025, 22:30 CET*
+
+The original code contained insufficient model re-initialisation between evaluation folds, which led to incorrect results. The issue affected exclusively the **sentence relevance classification task** under the **within-subject (participant-dependent) evaluation setting**, and only the **neural-based models** (EEGNet, LSTM, UERCM). The cross-subject (participant-independent) setting, the word relevance task, and the linear models (LDA, LR) were not affected. The current version of the code has been corrected. The issue is unrelated to the dataset in any way.
+
+---
+
+## Configure the environment
+``uv`` is used for dependency management.
+See how to install ``uv`` [here][2].
+
+After ``uv`` is installed, run ``uv sync`` in the folder where the ``README.md`` file is located.
 
 
 ## Getting the preprocessed and prepared data
@@ -22,7 +30,7 @@ There are 2 options:
 1. Download the ``data_prepared_for_benchmark`` from [here][3] and extract the files.
 This option is the fastest, as the data are already preprocessed and prepared for benchmarking.
 2. Download the *raw* data and annotations.csv from [here][5] and 
-run the script ``poetry run python prepare.py --project_path=path --data_type=benchmark``,
+run the script ``uv run python prepare.py --project_path=path --data_type=benchmark``,
 where ``project_path`` points to the folder that contains the *raw* data and annotations.csv.
 After running this script, the folder ``data_prepared_for_benchmark``
 with the prepared data for benchmarking will be created in the project_path.
@@ -30,32 +38,42 @@ with the prepared data for benchmarking will be created in the project_path.
 ## Run word relevance classification task
 
 The ``project_path`` must point to the folder that contains the prepared data.
+
+Run all seeds in parallel (local mode):
 ```py
-poetry run python benchmark.py --project_path=path --benchmark=w
+uv run python benchmark.py --project_path=path --benchmark=w
+```
+
+Run a single seed (e.g. for a SLURM array job):
+```py
+uv run python benchmark.py --project_path=path --benchmark=w --seed=1
 ```
 
 ## Run sentence relevance classification task
 
 The ``project_path`` must point to the folder that contains the prepared data.
+
+Run all seeds in parallel (local mode):
 ```py
-poetry run python benchmark.py --project_path=path --benchmark=s
+uv run python benchmark.py --project_path=path --benchmark=s
+```
+
+Run a single seed (e.g. for a SLURM array job):
+```py
+uv run python benchmark.py --project_path=path --benchmark=s --seed=1
 ```
 
 ## Generate prediction scores
-Scores are saved to a ``logs_results.log`` file and outputted in a terminal window
+Scores are saved to a ``logs_results.log`` file and outputted in a terminal window.
 
 ```py
-poetry run python generate_results.py --project_path=path
+uv run python generate_results.py --project_path=path
 ```
 
 ## Generate figures
 ```py
-poetry run python generate_figures.py --project_path=path
+uv run python generate_figures.py --project_path=path
 ```
-
-## Benchmark results:
-
-![Benchmark results](results.PNG)
 
 ## Details on classification models
 We trained all our models without performing a hyperparameter optimisation and using in most cases the default parameters. 
@@ -141,10 +159,6 @@ series = {SIGIR '25}
   [3]: https://drive.proton.me/urls/2TWQXJW2C4#9G2lbi7SuGFE
   [4]: https://arxiv.org/abs/1910.10781
   [5]: https://osf.io/xh3g5/
-
-Issues:
-- Currently, **src/** is the part of the installed package. This issue will be resolved and will not be a part of the package
-(i.e., the pyproject.toml will contain ``packages = [{include = "releegance", from = "src"}]``).
 
 References:
 

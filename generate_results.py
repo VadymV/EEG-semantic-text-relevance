@@ -68,10 +68,11 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     # Apply sigmoid to predictions based on the model type:
     mask = results["model"].isin(["eegnet", "lstm", "uercm"])
     masked_results = results.loc[mask]
-    sigmoid_fn = torch.nn.Sigmoid()
-    results.loc[mask, "predictions"] = masked_results["predictions"].apply(
-        lambda x: sigmoid_fn(torch.FloatTensor([x])).tolist().pop()
-    )
+    logits = torch.tensor(masked_results["predictions"].values, dtype=torch.float32)
+    probs = torch.sigmoid(logits).numpy()
+    results.loc[mask, "predictions"] = probs
+    print(results["predictions"].min(), results["predictions"].max())
+
     if file_pattern.startswith("w"):
         results["predictions"] = results.apply(
             lambda x: calibrate_probability(x["predictions"], x["ratio_pos_neg"]),
@@ -174,11 +175,12 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
                     if metric == "auc" and strategy == "participant-independent":
                         strategy_independent[model_id, participant_id] = round(mean, 2)
 
-    cmap = sns.cubehelix_palette(light=1, gamma=.6, n_colors=50, rot=-0.4,
-                                 as_cmap=True)
+    cmap = sns.cubehelix_palette(
+        light=1, gamma=0.6, n_colors=50, rot=-0.4, as_cmap=True
+    )
     sns.set(font_scale=2)
     sns.set_theme(style="white")
-    
+
     vmin, vmax = 0.4, 0.95
 
     model_dict = {
@@ -197,7 +199,9 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     axes[0, column].imshow(strategy_dependent, cmap=cmap, vmin=vmin, vmax=vmax)
     for (i, j), z in np.ndenumerate(strategy_dependent):
         color = "white" if z > 0.7 else "black"
-        axes[0, column].text(j, i, f"{z}", ha="center", va="center", size=11, color=color)
+        axes[0, column].text(
+            j, i, f"{z}", ha="center", va="center", size=11, color=color
+        )
     if column == 0:
         axes[0, column].set_title("Word relevance classification task", fontsize=16)
         axes[0, column].set_yticks(np.arange(len(model_names)))
@@ -218,7 +222,9 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     axes[1, column].imshow(strategy_independent, cmap=cmap, vmin=vmin, vmax=vmax)
     for (i, j), z in np.ndenumerate(strategy_independent):
         color = "white" if z > 0.7 else "black"
-        axes[1, column].text(j, i, f"{z}", ha="center", va="center", size=10, color=color)
+        axes[1, column].text(
+            j, i, f"{z}", ha="center", va="center", size=10, color=color
+        )
     if column == 0:
         axes[1, column].set_yticks(np.arange(len(model_names)))
         axes[1, column].set_yticklabels(model_names, fontsize=14)
@@ -254,12 +260,112 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     axes[1, column].set_xticklabels(metrics["user"].unique(), fontsize=14, rotation=90)
 
 
+def plot_auc_curves(
+    file_patterns: list, args: argparse.Namespace, title: str, output_path: str
+):
+    """
+    Plots train and val AUC learning curves averaged over all participants,
+    seeds, and reading tasks. One subplot per (model, strategy) combination.
+    Shaded area = 1 SD.
+    """
+    all_results = []
+    for file_pattern in file_patterns:
+        filepaths = glob.glob(os.path.join(args.project_path, file_pattern))
+        for fp in filepaths:
+            with open(fp, "r") as f:
+                all_results.append(pd.read_pickle(f.name))
+    if not all_results:
+        logging.warning("No files found for AUC curve plot.")
+        return
+    results = pd.concat(all_results)
+
+    # Skip rows from sklearn models (empty histories)
+    results = results[results["train_auc_history"].apply(lambda x: len(x) > 0)]
+    if results.empty:
+        logging.warning("No AUC history data found (only sklearn models?).")
+        return
+
+    # Deduplicate: one history per (seed, user, model, strategy, reading_task)
+    history_cols = ["seed", "user", "model", "strategy", "reading_task"]
+    histories = (
+        results[history_cols + ["train_auc_history", "val_auc_history"]]
+        .drop_duplicates(subset=history_cols)
+    )
+
+    models_order = sorted(histories["model"].unique())
+    strategies = sorted(histories["strategy"].unique())
+
+    n_models = len(models_order)
+    n_strategies = len(strategies)
+
+    model_dict = {
+        "eegnet": "EEGNet",
+        "lstm": "LSTM",
+        "uercm": "UERCM",
+    }
+
+    fig, axes = plt.subplots(
+        nrows=n_strategies,
+        ncols=n_models,
+        figsize=(5 * n_models, 4 * n_strategies),
+        gridspec_kw={"hspace": 0.35, "wspace": 0.3},
+    )
+    if n_strategies == 1:
+        axes = axes[np.newaxis, :]
+    if n_models == 1:
+        axes = axes[:, np.newaxis]
+
+    for si, strategy in enumerate(strategies):
+        for mi, model_name in enumerate(models_order):
+            ax = axes[si, mi]
+            subset = histories[
+                (histories["model"] == model_name)
+                & (histories["strategy"] == strategy)
+            ]
+            if subset.empty:
+                ax.set_visible(False)
+                continue
+
+            def pad_and_stack(series):
+                lists = series.tolist()
+                max_len = max(len(h) for h in lists)
+                arr = np.full((len(lists), max_len), np.nan)
+                for i, h in enumerate(lists):
+                    arr[i, : len(h)] = h
+                return arr
+
+            train_arr = pad_and_stack(subset["train_auc_history"])
+            val_arr = pad_and_stack(subset["val_auc_history"])
+
+            epochs = np.arange(1, train_arr.shape[1] + 1)
+            for arr, label, color in [
+                (train_arr, "Train AUC", "steelblue"),
+                (val_arr, "Val AUC", "darkorange"),
+            ]:
+                mean = np.nanmean(arr, axis=0)
+                sd = np.nanstd(arr, axis=0)
+                ax.plot(epochs, mean, label=label, color=color)
+                ax.fill_between(epochs, mean - sd, mean + sd, alpha=0.2, color=color)
+
+            ax.set_title(
+                f"{model_dict.get(model_name, model_name)}\n{strategy}", fontsize=11
+            )
+            ax.set_xlabel("Epoch", fontsize=9)
+            ax.set_ylabel("AUC", fontsize=9)
+            ax.set_ylim(0.0, 1.0)
+            ax.legend(fontsize=8)
+
+    fig.suptitle(title, fontsize=14)
+    plt.savefig(output_path, format="pdf", bbox_inches="tight")
+    logging.info("Saved AUC curve plot to %s", output_path)
+
+
 if __name__ == "__main__":
     parser = create_args(seeds_args=False, benchmark_args=False)
     args = parser.parse_args()
 
     set_logging(args.project_path, file_name="logs_results")
-    logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+    logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
     set_seed(1)
     logging.info("Args: %s", args)
 
@@ -279,3 +385,19 @@ if __name__ == "__main__":
     run(file_pattern="s_relevance_seed*.pkl", args=args, axes=axes)
 
     plt.savefig(f"figures/results_participants.pdf", format="pdf", bbox_inches="tight")
+
+    logging.info("Generating AUC learning curves for word relevance...")
+    plot_auc_curves(
+        file_patterns=["w_relevance_seed*.pkl"],
+        args=args,
+        title="Word relevance — Train / Val AUC (mean ± 1 SD)",
+        output_path="figures/auc_curves_words.pdf",
+    )
+
+    logging.info("Generating AUC learning curves for sentence relevance...")
+    plot_auc_curves(
+        file_patterns=["s_relevance_seed*.pkl"],
+        args=args,
+        title="Sentence relevance — Train / Val AUC (mean ± 1 SD)",
+        output_path="figures/auc_curves_sentences.pdf",
+    )

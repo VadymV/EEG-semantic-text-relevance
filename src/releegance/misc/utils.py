@@ -54,14 +54,16 @@ def set_logging(log_dir: str, file_name: str):
         file_name: File name where the logs will be stored.
 
     """
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(f"{log_dir}/{file_name}.log"),
-            logging.StreamHandler()
-        ]
-    )
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    fh = logging.FileHandler(f"{log_dir}/{file_name}.log")
+    fh.setFormatter(formatter)
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+    root.addHandler(fh)
+    root.addHandler(sh)
 
 
 def set_seed(seed):
@@ -77,9 +79,9 @@ def set_seed(seed):
     cudnn.deterministic = True
 
 
-def create_args(seeds_args: bool = True,
-                benchmark_args: bool = True,
-                data_type_args: bool = False) -> argparse.ArgumentParser:
+def create_args(
+    seeds_args: bool = True, benchmark_args: bool = True, data_type_args: bool = False
+) -> argparse.ArgumentParser:
     """
     Creates an argument parser.
     Args:
@@ -91,26 +93,31 @@ def create_args(seeds_args: bool = True,
         An argument parser.
 
     """
-    parser = argparse.ArgumentParser(description='Arguments')
-    parser.add_argument('--project_path',
-                        type=str,
-                        help='A path to the folder containing the EEG data '
-                             'called "raw"')
+    parser = argparse.ArgumentParser(description="Arguments")
+    parser.add_argument(
+        "--project_path",
+        type=str,
+        help="A path to the folder containing the EEG data " 'called "raw"',
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Run a single seed (used by SLURM array jobs).",
+    )
     if seeds_args:
-        parser.add_argument('--seeds',
-                            type=int,
-                            help='Number of seeds to use.',
-                            default=10)
+        parser.add_argument(
+            "--seeds", type=int, help="Number of seeds to use.", default=10
+        )
     if benchmark_args:
-        parser.add_argument('--benchmark',
-                            type=str,
-                            default='w',
-                            help='"w" or "s"')
+        parser.add_argument("--benchmark", type=str, default="w", help='"w" or "s"')
     if data_type_args:
-        parser.add_argument('--data_type',
-                            type=str,
-                            default='benchmark',
-                            help='"benchmark" or "preprocessed"')
+        parser.add_argument(
+            "--data_type",
+            type=str,
+            default="benchmark",
+            help='"benchmark" or "preprocessed"',
+        )
 
     return parser
 
@@ -119,8 +126,10 @@ class Relevance(Enum):
     """
     Relevance and irrelevance labels.
     """
+
     RELEVANT = 1
     IRRELEVANT = 0
+
 
 def _perm_fun(x: np.ndarray, n_test: int, n_control: int):
     n = n_test + n_control
@@ -128,13 +137,15 @@ def _perm_fun(x: np.ndarray, n_test: int, n_control: int):
     idx_test = set(range(n)) - idx_control
     return x[list(idx_test)].mean() - x[list(idx_control)].mean()
 
+
 def run_permutation_test(control, test):
     a = copy.deepcopy(control)
     b = copy.deepcopy(test)
     observed_difference = np.mean(b) - np.mean(a)
     perm_diffs = [
-        _perm_fun(np.concatenate((a, b), axis=None), a.shape[0], b.shape[0]) for
-        _ in range(10000)]
+        _perm_fun(np.concatenate((a, b), axis=None), a.shape[0], b.shape[0])
+        for _ in range(10000)
+    ]
     p = np.mean([diff > observed_difference for diff in perm_diffs])
     print("P value: {:.4f}".format(p))
 
@@ -155,10 +166,7 @@ def calculate_ratio_pos_neg(positive_count, negative_count, count):
     return (positive_count / count) / (negative_count / count)
 
 
-
-def calibrate_probability(
-    p, ratio_pos_neg
-):
+def calibrate_probability(p, ratio_pos_neg):
     """
     Probability values are calibrated. Reason: a threshold of 0.5 is desired.
     For example, if the positive class has 0.3 chance of occurring in the data and the negative class 0.7, then

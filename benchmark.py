@@ -47,7 +47,7 @@ from src.releegance.misc.utils import (
 from src.releegance.models import Models
 from src.releegance.trainer.trainer import train, test
 
-_BATCH_SIZE = 30
+_BATCH_SIZE = 8
 T = TypeVar("T")
 
 
@@ -66,6 +66,8 @@ def fill_tracker(
     ],
     reading_task: int,
     ratio_pos_neg: float,
+    train_auc_history: list,
+    val_auc_history: list,
 ):
     """
     Fills the tracker with the predictions, targets, and other info.
@@ -82,6 +84,8 @@ def fill_tracker(
         strategy: Evaluation strategy.
         reading_task: A reading task as an integer.
         ratio_pos_neg: A negative sampling rate.
+        train_auc_history: Per-epoch train AUC values from training.
+        val_auc_history: Per-epoch val AUC values from training.
 
     Returns:
         A dict containing the information about: model, predictions, targets,
@@ -104,17 +108,14 @@ def fill_tracker(
     tracker["strategy"].extend([strategy] * n)
     tracker["reading_task"].extend([reading_task] * n)
     tracker["ratio_pos_neg"].extend([ratio_pos_neg] * n)
+    tracker["train_auc_history"].extend([train_auc_history] * n)
+    tracker["val_auc_history"].extend([val_auc_history] * n)
 
     return tracker
 
 
-def run(args: argparse.Namespace, seed: int):
-    is_sentence = args.benchmark == "s"
-    set_logging(args.project_path, file_name=f"logs_{args.benchmark}")
-    set_seed(seed)
-    logging.info("Args: %s", args)
-
-    tracker = {
+def _empty_tracker() -> dict:
+    return {
         "seed": [],
         "user": [],
         "model": [],
@@ -123,7 +124,179 @@ def run(args: argparse.Namespace, seed: int):
         "strategy": [],
         "reading_task": [],
         "ratio_pos_neg": [],
+        "train_auc_history": [],
+        "val_auc_history": [],
     }
+
+
+def run_participant(
+    outer_train_idx: np.ndarray,
+    test_idx: np.ndarray,
+    dataset: Union[DatasetSentences, DatasetWords],
+    groups: np.ndarray,
+    is_sentence: bool,
+    seed: int,
+) -> dict:
+    """Runs all training and evaluation for a single test participant."""
+    tracker = _empty_tracker()
+
+    test_participant = np.unique(np.array(dataset.participants)[test_idx])
+    if test_participant.size != 1:
+        raise ValueError(
+            f"Expected one test participant, got {test_participant.size}."
+        )
+    participant = dataset.unique_participants[test_participant[0]]
+    logging.info("--- Test participant: %s ---", participant)
+
+    logo = LeaveOneGroupOut()
+    inner_train_relative, val_relative = next(
+        logo.split(np.arange(len(outer_train_idx)), groups=groups[outer_train_idx])
+    )
+    train_idx = outer_train_idx[inner_train_relative]
+    val_idx = outer_train_idx[val_relative]
+
+    assert len(set(train_idx) & set(val_idx)) == 0, "Train and val overlap!"
+    assert len(set(train_idx) & set(test_idx)) == 0, "Train and test overlap!"
+    assert len(set(val_idx) & set(test_idx)) == 0, "Val and test overlap!"
+
+    val_participants = np.unique(np.array(dataset.participants)[val_idx])
+    logging.info(
+        "Validation participants: %s",
+        [dataset.unique_participants[p] for p in val_participants],
+    )
+
+    # Get indices for reading trials (2 * 8):
+    block_indices = dataset.get_indices_for_reading_tasks(test_idx)
+    train_user_idx, val_user_idx, test_user_idx = [], [], []
+    # Iterate over reading tasks (8) and create train/val/test indices:
+    for test_block in block_indices:
+        val_user_block = test_block + 1 if test_block < len(block_indices) else 1
+        train_user_block = [
+            b for b in block_indices if b not in [test_block] + [val_user_block]
+        ]
+
+        t_test = set(block_indices[test_block])
+        t_val = set(block_indices[val_user_block])
+        t_train = set(
+            i
+            for nested in [block_indices[i] for i in train_user_block]
+            for i in nested
+        )
+        assert len(t_train & t_val) == 0, "Participant-dependent train and val overlap!"
+        assert len(t_train & t_test) == 0, "Participant-dependent train and test overlap!"
+        assert len(t_val & t_test) == 0, "Participant-dependent val and test overlap!"
+
+        test_user_idx.append(block_indices[test_block])
+        val_user_idx.append(block_indices[val_user_block])
+        train_user_idx.append(list(t_train))
+
+    models = Models(
+        class_weight=dataset.class_weights,
+        lstm_input_dim=224 if is_sentence else 32,
+        transformer_sequence_length=MAX_SENTENCE_LENGTH if is_sentence else 7,
+        transformer_feature_dim=224 if is_sentence else 32,
+    )
+
+    # Participant-independent strategy:
+    logging.info("---- Participant-independent strategy ----")
+    d = pd.concat(
+        [dataset[i][2] for i in train_idx]
+    )  # for the probability calibration
+    # Iterate over models (5):
+    for model_name in models.get_all_models():
+        logging.info("---- %s ----", model_name)
+        model, train_auc_history, val_auc_history = train(
+            model=models.get_model(model_name),
+            dataset=dataset,
+            train_idx=train_idx,
+            val_idx=val_idx,
+            batch_size=_BATCH_SIZE,
+            collator=models.get_collator(model_name, is_sentence),
+        )
+        models.set_model(model_name, model)
+        # Iterate over reading tasks (8):
+        for reading_task, test_subset in enumerate(test_user_idx):
+            logging.info("---- Reading trial: %s ----", reading_task)
+            logging.info("---- Test subset length: %s ----", len(test_subset))
+            ratio_pos_neg = calculate_ratio_pos_neg(
+                positive_count=d["semantic_relevance"].sum(),
+                negative_count=len(d) - d["semantic_relevance"].sum(),
+                count=len(d),
+            )
+            tracker = fill_tracker(
+                tracker=tracker,
+                test_idx=test_subset,
+                model=model,
+                model_name=model_name,
+                collator=models.get_collator(model_name, is_sentence),
+                batch_size=_BATCH_SIZE,
+                strategy="participant-independent",
+                dataset=dataset,
+                participant=participant,
+                seed=seed,
+                reading_task=reading_task,
+                ratio_pos_neg=ratio_pos_neg,
+                train_auc_history=train_auc_history,
+                val_auc_history=val_auc_history,
+            )
+
+    # Save participant-independent models so they can be restored per reading task
+    models.save_snapshot()
+
+    # Participant-dependent strategy
+    # Iterate over reading tasks (8):
+    for reading_task in range(len(test_user_idx)):
+        logging.info("---- Reading trial: %s ----", reading_task)
+        logging.info(
+            "---- Test subset length: %s ----", len(test_user_idx[reading_task])
+        )
+        # Iterate over models (5):
+        for model_name in models.get_all_models():
+            logging.info("---- %s ----", model_name)
+            model, train_auc_history, val_auc_history = train(
+                model=models.get_model(model_name),
+                dataset=dataset,
+                train_idx=train_user_idx[reading_task],
+                val_idx=val_user_idx[reading_task],
+                batch_size=_BATCH_SIZE,
+                collator=models.get_collator(model_name, is_sentence),
+            )
+            d = pd.concat(
+                [dataset[i][2] for i in train_user_idx[reading_task]]
+            )  # for the probability calibration
+            ratio_pos_neg = calculate_ratio_pos_neg(
+                positive_count=d["semantic_relevance"].sum(),
+                negative_count=len(d) - d["semantic_relevance"].sum(),
+                count=len(d),
+            )
+            tracker = fill_tracker(
+                tracker=tracker,
+                test_idx=test_user_idx[reading_task],
+                model=model,
+                model_name=model_name,
+                collator=models.get_collator(model_name, is_sentence),
+                batch_size=_BATCH_SIZE,
+                strategy="participant-dependent",
+                dataset=dataset,
+                participant=participant,
+                seed=seed,
+                reading_task=reading_task,
+                ratio_pos_neg=ratio_pos_neg,
+                train_auc_history=train_auc_history,
+                val_auc_history=val_auc_history,
+            )
+
+        # Restore participant-independent models for the next reading task
+        models.restore_snapshot()
+
+    return tracker
+
+
+def run(args: argparse.Namespace, seed: int):
+    is_sentence = args.benchmark == "s"
+    set_logging(args.project_path, file_name=f"logs_{args.benchmark}_seed{seed}")
+    set_seed(seed)
+    logging.info("Args: %s", args)
 
     data_dir = os.path.join(args.project_path, "data_prepared_for_benchmark")
     dataset = (
@@ -135,145 +308,35 @@ def run(args: argparse.Namespace, seed: int):
     logo = LeaveOneGroupOut()
     all_idx = np.arange(len(dataset))
 
-    # Iterate over participants (1 * 15):
-    for _, (outer_train_idx, test_idx) in enumerate(
-        logo.split(all_idx, groups=groups), 1
-    ):
-        test_participant = np.unique(np.array(dataset.participants)[test_idx])
-        if test_participant.size != 1:
-            raise ValueError(
-                f"Expected one test participant, got {test_participant.size}."
-            )
-        participant = dataset.unique_participants[test_participant[0]]
-        logging.info("--- Test participant: %s ---", participant)
-
-        inner_train_relative, val_relative = next(
-            logo.split(np.arange(len(outer_train_idx)), groups=groups[outer_train_idx])
-        )
-        train_idx = outer_train_idx[inner_train_relative]
-        val_idx = outer_train_idx[val_relative]
-
-        # Get indices for reading trials (2 * 8):
-        block_indices = dataset.get_indices_for_reading_tasks(test_idx)
-        train_user_idx, val_user_idx, test_user_idx = [], [], []
-        # Iterate over reading tasks (8) and create train/val/test indices:
-        for test_block in block_indices:
-            val_user_block = test_block + 1 if test_block < len(block_indices) else 1
-            train_user_block = [
-                b for b in block_indices if b not in [test_block] + [val_user_block]
-            ]
-
-            test_user_idx.append(block_indices[test_block])
-            val_user_idx.append(block_indices[val_user_block])
-            train_user_idx.append(
-                [
-                    i
-                    for nested in [block_indices[i] for i in train_user_block]
-                    for i in nested
-                ]
-            )
-
-        models = Models(
-            class_weight=dataset.class_weights,
-            lstm_input_dim=224 if is_sentence else 32,
-            transformer_sequence_length=MAX_SENTENCE_LENGTH if is_sentence else 7,
-            transformer_feature_dim=224 if is_sentence else 32,
-        )
-
-        # Participant-independent strategy:
-        logging.info("---- Participant-independent strategy ----")
-        d = pd.concat(
-            [dataset[i][2] for i in train_idx]
-        )  # for the probability calibration
-        # Iterate over models (5):
-        for model_name in models.get_all_models():
-            logging.info("---- %s ----", model_name)
-            model = train(
-                model=models.get_model(model_name),
-                dataset=dataset,
-                train_idx=train_idx,
-                val_idx=val_idx,
-                batch_size=_BATCH_SIZE,
-                collator=models.get_collator(model_name, is_sentence),
-            )
-            models.set_model(model_name, model)
-            # Iterate over reading tasks (8):
-            for reading_task, test_subset in enumerate(test_user_idx):
-                logging.info("---- Reading trial: %s ----", reading_task)
-                logging.info("---- Test subset length: %s ----", len(test_subset))
-                ratio_pos_neg = calculate_ratio_pos_neg(
-                    positive_count=d["semantic_relevance"].sum(),
-                    negative_count=len(d) - d["semantic_relevance"].sum(),
-                    count=len(d),
-                )
-                tracker = fill_tracker(
-                    tracker=tracker,
-                    test_idx=test_subset,
-                    model=model,
-                    model_name=model_name,
-                    collator=models.get_collator(model_name, is_sentence),
-                    batch_size=_BATCH_SIZE,
-                    strategy="participant-independent",
-                    dataset=dataset,
-                    participant=participant,
-                    seed=seed,
-                    reading_task=reading_task,
-                    ratio_pos_neg=ratio_pos_neg,
-                )
-
-        # Participant-dependent strategy
-        # Iterate over reading tasks (8):
-        for reading_task in range(len(test_user_idx)):
-            logging.info("---- Reading trial: %s ----", reading_task)
-            logging.info(
-                "---- Test subset length: %s ----", len(test_user_idx[reading_task])
-            )
-            # Iterate over models (5):
-            for model_name in models.get_all_models():
-                logging.info("---- %s ----", model_name)
-                model = train(
-                    model=models.get_model(model_name),
-                    dataset=dataset,
-                    train_idx=train_user_idx[reading_task],
-                    val_idx=val_user_idx[reading_task],
-                    batch_size=_BATCH_SIZE,
-                    collator=models.get_collator(model_name, is_sentence),
-                )
-                d = pd.concat(
-                    [dataset[i][2] for i in train_user_idx[reading_task]]
-                )  # for the probability calibration
-                ratio_pos_neg = calculate_ratio_pos_neg(
-                    positive_count=d["semantic_relevance"].sum(),
-                    negative_count=len(d) - d["semantic_relevance"].sum(),
-                    count=len(d),
-                )
-                tracker = fill_tracker(
-                    tracker=tracker,
-                    test_idx=test_user_idx[reading_task],
-                    model=model,
-                    model_name=model_name,
-                    collator=models.get_collator(model_name, is_sentence),
-                    batch_size=_BATCH_SIZE,
-                    strategy="participant-dependent",
-                    dataset=dataset,
-                    participant=participant,
-                    seed=seed,
-                    reading_task=reading_task,
-                    ratio_pos_neg=ratio_pos_neg,
-                )
-
-        # Reset the models
-        models.reset_models()
+    tracker = _empty_tracker()
+    for _, (outer_train_idx, test_idx) in enumerate(logo.split(all_idx, groups=groups), 1):
+        pt = run_participant(outer_train_idx, test_idx, dataset, groups, is_sentence, seed)
+        for key in tracker:
+            tracker[key].extend(pt[key])
 
     logging.info("Saving the tracking data.")
-    tracker = pd.DataFrame.from_dict(tracker)
-    tracker.to_pickle(
+    pd.DataFrame.from_dict(tracker).to_pickle(
         os.path.join(args.project_path, f"{args.benchmark}_relevance_seed{seed}.pkl")
     )
 
 
+def _run_seed(seed_and_args):
+    seed, args = seed_and_args
+    run(args, seed)
+
+
 if __name__ == "__main__":
+    import multiprocessing
+
     parser = create_args()
     arguments = parser.parse_args()
-    for selected_seed in range(1, arguments.seeds + 1):
-        run(arguments, selected_seed)
+
+    if arguments.seed is not None:
+        # Single-seed mode (e.g. SLURM array job)
+        run(arguments, arguments.seed)
+    else:
+        # Local mode: run seeds in parallel
+        seeds = range(1, arguments.seeds + 1)
+        with multiprocessing.Pool(processes=len(seeds)) as pool:
+            pool.map(_run_seed, [(s, arguments) for s in seeds])
+

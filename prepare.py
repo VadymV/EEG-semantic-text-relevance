@@ -36,14 +36,12 @@ from src.releegance.misc.utils import set_logging, set_seed, create_args
 
 
 def run():
-    parser = create_args(seeds_args=False,
-                         benchmark_args=False,
-                         data_type_args=True)
+    parser = create_args(seeds_args=False, benchmark_args=False, data_type_args=True)
     args = parser.parse_args()
 
-    set_logging(args.project_path, file_name='logs_prepare')
+    set_logging(args.project_path, file_name="logs_prepare")
     set_seed(1)
-    logging.info('Args: %s', args)
+    logging.info("Args: %s", args)
 
     # Data pre-processing:
     data_preprocessor = DataPreprocessor(project_path=args.project_path)
@@ -52,10 +50,9 @@ def run():
     data_preprocessor.clean()
 
     # Data preparation:
-    data_preparator = DataPreparator(
-        data_dir=data_preprocessor.cleaned_data_dir)
+    data_preparator = DataPreparator(data_dir=data_preprocessor.cleaned_data_dir)
 
-    if args.data_type == 'benchmark':
+    if args.data_type == "benchmark":
         data_preparator.prepare_data_for_benchmark()
     else:
         data_preparator.save_cleaned_data()
@@ -65,5 +62,5 @@ def run():
     data_preprocessor.remove_cleaned_folder()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()

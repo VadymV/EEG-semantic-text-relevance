@@ -2,14 +2,23 @@
 Definition of all models.
 """
 
+import copy
+
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 
-from src.releegance.data_operations.loader_sentences import \
-    CollatorLSTMSentence, CollatorEEGNetSentence, CollatorTransformerSentence, \
-    CollatorSentence
-from src.releegance.data_operations.loader_words import CollatorLSTMWord, \
-    CollatorEEGNetWord, CollatorTransformerWord, CollatorWords
+from src.releegance.data_operations.loader_sentences import (
+    CollatorLSTMSentence,
+    CollatorEEGNetSentence,
+    CollatorTransformerSentence,
+    CollatorSentence,
+)
+from src.releegance.data_operations.loader_words import (
+    CollatorLSTMWord,
+    CollatorEEGNetWord,
+    CollatorTransformerWord,
+    CollatorWords,
+)
 from src.releegance.models.eegnet import EEGNet
 from src.releegance.models.lstm import LSTM
 from src.releegance.models.uercm import UERCM
@@ -27,30 +36,27 @@ class Models:
         uercm: An UERCM model.
     """
 
-    def __init__(self, class_weight: dict, lstm_input_dim: int,
-                 transformer_sequence_length: int,
-                 transformer_feature_dim: int):
+    def __init__(
+        self,
+        class_weight: dict,
+        lstm_input_dim: int,
+        transformer_sequence_length: int,
+        transformer_feature_dim: int,
+    ):
         self.lstm = LSTM(input_dim=lstm_input_dim, hid_channels=32, num_classes=1)
         self.eegnet = EEGNet(chunk_size=151, num_electrodes=32, num_classes=1)
         self.lda = LinearDiscriminantAnalysis()
         self.lr = LogisticRegression()
-        self.uercm = UERCM(max_len=transformer_sequence_length,
-                           feat_dim=transformer_feature_dim)
+        self.uercm = UERCM(
+            max_len=transformer_sequence_length, feat_dim=transformer_feature_dim
+        )
         self.class_weight = class_weight
         self.lstm_input_dim = lstm_input_dim
         self.transformer_sequence_length = transformer_sequence_length
         self.transformer_feature_dim = transformer_feature_dim
 
-    def reset_models(self):
-        self.lstm = LSTM(input_dim=self.lstm_input_dim, hid_channels=32, num_classes=1)
-        self.eegnet = EEGNet(chunk_size=151, num_electrodes=32, num_classes=1)
-        self.lda = LinearDiscriminantAnalysis()
-        self.lr = LogisticRegression()
-        self.uercm = UERCM(max_len=self.transformer_sequence_length,
-                           feat_dim=self.transformer_feature_dim)
-
     def get_all_models(self) -> list:
-        return ["lstm", "eegnet", "lda", "lr", "uercm"]
+        return ["lstm", "eegnet", "uercm", "lda", "lr"]
 
     def get_model(self, model_name: str):
         if model_name == "lstm":
@@ -76,7 +82,16 @@ class Models:
         elif model_name == "uercm":
             self.uercm = model
 
+    def save_snapshot(self):
+        """Saves a deep copy of all models so they can be restored later."""
+        self._snapshot = {
+            name: copy.deepcopy(self.get_model(name)) for name in self.get_all_models()
+        }
 
+    def restore_snapshot(self):
+        """Restores models from the saved snapshot."""
+        for name, model in self._snapshot.items():
+            self.set_model(name, copy.deepcopy(model))
 
     def get_model_name(self, model: object) -> str:
         if isinstance(model, LSTM):
@@ -100,7 +115,9 @@ class Models:
         elif model_name == "eegnet" and not is_sentence:
             return CollatorEEGNetWord()
         elif model_name == "uercm" and is_sentence:
-            return CollatorTransformerSentence()
+            return CollatorTransformerSentence(
+                max_length=self.transformer_sequence_length,
+            )
         elif model_name == "uercm" and not is_sentence:
             return CollatorTransformerWord()
         elif model_name == "lda" and is_sentence:
