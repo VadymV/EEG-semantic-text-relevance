@@ -12,9 +12,9 @@ Paper is accessible at: https://dl.acm.org/doi/10.1145/3726302.3730289
 
 ## Erratum
 
-*9 April 2025, 22:46 CET*
+*9 April 2025, 23:00 CET*
 
-The original code contained insufficient model re-initialisation between evaluation folds, which led to incorrect results. The issue affected exclusively the **sentence relevance classification task** under the **within-subject (participant-dependent) evaluation setting**, and only the **neural-based models** (EEGNet, LSTM, UERCM). The cross-subject (participant-independent) setting, the word relevance task, and the linear models (LDA, LR) were not affected. The current version of the code has been corrected. The issue is unrelated to the dataset in any way.
+The original code contained insufficient model re-initialisation between evaluation folds, which led to incorrect results. The issue affected exclusively the **within-subject evaluation setting** and only the **neural-based models** (EEGNet, LSTM, UERCM). The cross-subject setting and the linear models (LDA, LR) in the within-subject setting were not affected. The current version of the code has been corrected. The issue is unrelated to the dataset in any way.
 
 ---
 
