@@ -35,14 +35,11 @@ See how to install ``uv`` [here][2].
 After ``uv`` is installed, run ``uv sync`` in the folder where the ``README.md`` file is located.
 
 
-## Getting the preprocessed and prepared data
-There are 2 options:
-1. Download the ``data_prepared_for_benchmark`` from [here][3] and extract the files.
-This option is the fastest, as the data are already preprocessed and prepared for benchmarking.
-2. Download the *raw* data and annotations.csv from [here][5] and 
+## Getting the  data
+1. Download the *raw* data and annotations.csv from [here][5] and 
 run the script ``uv run python prepare.py --project_path=path --data_type=benchmark``,
 where ``project_path`` points to the folder that contains the *raw* data and annotations.csv.
-After running this script, the folder ``data_prepared_for_benchmark``
+2. After running this script, the folder ``data_prepared_for_benchmark``
 with the prepared data for benchmarking will be created in the project_path.
 
 ## Run word relevance classification task
