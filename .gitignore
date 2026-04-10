@@ -3,7 +3,7 @@
 /data/
 /lightning_logs/
 /dist/
-/figures/*
 /results/*
+/figures/*.pdf
 /checkpoints/
 .DS_Store

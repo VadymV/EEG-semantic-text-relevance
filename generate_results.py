@@ -287,10 +287,9 @@ def plot_auc_curves(
 
     # Deduplicate: one history per (seed, user, model, strategy, reading_task)
     history_cols = ["seed", "user", "model", "strategy", "reading_task"]
-    histories = (
-        results[history_cols + ["train_auc_history", "val_auc_history"]]
-        .drop_duplicates(subset=history_cols)
-    )
+    histories = results[
+        history_cols + ["train_auc_history", "val_auc_history"]
+    ].drop_duplicates(subset=history_cols)
 
     models_order = sorted(histories["model"].unique())
     strategies = sorted(histories["strategy"].unique())
@@ -319,8 +318,7 @@ def plot_auc_curves(
         for mi, model_name in enumerate(models_order):
             ax = axes[si, mi]
             subset = histories[
-                (histories["model"] == model_name)
-                & (histories["strategy"] == strategy)
+                (histories["model"] == model_name) & (histories["strategy"] == strategy)
             ]
             if subset.empty:
                 ax.set_visible(False)

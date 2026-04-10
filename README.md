@@ -18,6 +18,16 @@ The original code contained insufficient model re-initialisation between evaluat
 
 ---
 
+## Benchmark results
+
+![Word relevance and sentence relevance binary classification results averaged over all participants.](figures/Table3.png)
+
+**Figure 5: Benchmark results per participant for the word relevance (left) and sentence relevance (right) classification tasks. A value inside each cell represents an averaged AUC score. 𝑋 -axis: participant’s ID. 𝑌 -axis (left): model. 𝑌 -axis (right): training strategy. Darker colour means higher AUC score.**
+
+![Word relevance and sentence relevance binary classification results per participant.](figures/Figure5.png)
+
+---
+
 ## Configure the environment
 ``uv`` is used for dependency management.
 See how to install ``uv`` [here][2].
