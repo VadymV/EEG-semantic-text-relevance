@@ -50,13 +50,15 @@ class Models:
         self.uercm = UERCM(
             max_len=transformer_sequence_length, feat_dim=transformer_feature_dim
         )
+        self.lda_control = LinearDiscriminantAnalysis()
+        self.lda_control._is_control = True
         self.class_weight = class_weight
         self.lstm_input_dim = lstm_input_dim
         self.transformer_sequence_length = transformer_sequence_length
         self.transformer_feature_dim = transformer_feature_dim
 
     def get_all_models(self) -> list:
-        return ["lstm", "eegnet", "uercm", "lda", "lr"]
+        return ["lstm", "eegnet", "uercm", "lda", "lr", "lda_control"]
 
     def get_model(self, model_name: str):
         if model_name == "lstm":
@@ -69,6 +71,8 @@ class Models:
             return self.lr
         elif model_name == "uercm":
             return self.uercm
+        elif model_name == "lda_control":
+            return self.lda_control
 
     def set_model(self, model_name: str, model):
         if model_name == "lstm":
@@ -81,6 +85,8 @@ class Models:
             self.lr = model
         elif model_name == "uercm":
             self.uercm = model
+        elif model_name == "lda_control":
+            self.lda_control = model
 
     def save_snapshot(self):
         """Saves a deep copy of all models so they can be restored later."""
@@ -120,9 +126,9 @@ class Models:
             )
         elif model_name == "uercm" and not is_sentence:
             return CollatorTransformerWord()
-        elif model_name == "lda" and is_sentence:
+        elif model_name in ("lda", "lda_control") and is_sentence:
             return CollatorSentence()
-        elif model_name == "lda" and not is_sentence:
+        elif model_name in ("lda", "lda_control") and not is_sentence:
             return CollatorWords()
         elif model_name == "lr" and is_sentence:
             return CollatorSentence()

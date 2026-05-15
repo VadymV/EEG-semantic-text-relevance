@@ -126,6 +126,9 @@ def train(
         model = trainer.model
     else:
         train_eeg, train_labels = get_data(train_loader)
+        if getattr(model, '_is_control', False):
+            import numpy as np
+            train_labels = train_labels[np.random.permutation(len(train_labels))]
         model.fit(train_eeg, train_labels)
         train_auc_history, val_auc_history = [], []
 

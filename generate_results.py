@@ -65,19 +65,36 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
             results.append(pd.read_pickle(f.name))
     results = pd.concat(results)
 
+    def log_predictions(stage: str):
+        for model_name in results["model"].unique():
+            model_probs = results.loc[results["model"] == model_name, "predictions"]
+            logging.info(
+                "Model %s predictions %s — mean: %.3f, median: %.3f, std: %.3f, min: %.3f, max: %.3f",
+                model_name, stage,
+                model_probs.mean(), model_probs.median(), model_probs.std(),
+                model_probs.min(), model_probs.max(),
+            )
+
     # Apply sigmoid to predictions based on the model type:
     mask = results["model"].isin(["eegnet", "lstm", "uercm"])
     masked_results = results.loc[mask]
     logits = torch.tensor(masked_results["predictions"].values, dtype=torch.float32)
     probs = torch.sigmoid(logits).numpy()
     results.loc[mask, "predictions"] = probs
-    print(results["predictions"].min(), results["predictions"].max())
 
+    log_predictions("before calibration")
+
+    if file_pattern.startswith("s"):
+        results["ratio_pos_neg"] = 1.0
+
+    # Calibrate probabilities so that the natural 0.5 threshold is correct:
     if file_pattern.startswith("w"):
         results["predictions"] = results.apply(
             lambda x: calibrate_probability(x["predictions"], x["ratio_pos_neg"]),
             axis=1,
         )
+
+    log_predictions("after calibration")
 
     # Calculate classification metrics:
     groups = results.groupby(_grouping_columns)
@@ -136,34 +153,35 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
     metrics = metrics.merge(auc, on=_grouping_columns)
     metrics = metrics.merge(f1, on=_grouping_columns)
 
+    all_metric_cols = ["auc", "precision", "recall", "f1"]
+
+    # summary[model][strategy] = dict of metric -> (mean, std)
+    summary = {}
     for model in metrics.model.unique():
-        latex_output = ""
+        summary[model] = {}
         for strategy in metrics.strategy.unique()[::-1]:
             logging.info("\n\nModel: %s, Strategy: %s", model, strategy)
+            subset = metrics[(metrics["model"] == model) & (metrics["strategy"] == strategy)]
+            per_participant = subset.groupby("user")[all_metric_cols].mean()
+            summary[model][strategy] = {}
             for metric in ["auc", "precision", "recall", "f1"]:
-                mean = metrics[
-                    (metrics["model"] == model) & (metrics["strategy"] == strategy)
-                ][metric].mean()
-                std = metrics[
-                    (metrics["model"] == model) & (metrics["strategy"] == strategy)
-                ][metric].std()
+                mean = per_participant[metric].mean()
+                std = per_participant[metric].std()
+                summary[model][strategy][metric] = (mean, std)
                 logging.info("%s: %.2f +- %.2f", metric, mean, std)
-                latex_output += f"& {mean:.2f} ({std:.2f}) "
-
-        logging.info(latex_output)
 
     num_models = len(metrics["model"].unique())
     num_participants = len(metrics["user"].unique())
-    if num_models != 5 and num_participants != 15:
+    if num_models != 6 and num_participants != 15:
         raise ValueError(
-            "The number of models should be 5, and the number of participants should be 15."
+            "The number of models should be 6, and the number of participants should be 15."
         )
-    strategy_dependent = np.empty((5, 15))
-    strategy_independent = np.empty((5, 15))
+    strategy_dependent = np.empty((6, 15))
+    strategy_independent = np.empty((6, 15))
     for participant_id, participant in enumerate(metrics["user"].unique()):
         d = metrics[(metrics["user"] == participant)]
         for model_id, model in enumerate(metrics.model.unique()):
-            for strategy_id, strategy in enumerate(metrics.strategy.unique()[::-1]):
+            for strategy in metrics.strategy.unique()[::-1]:
                 for metric in ["auc", "precision", "recall"]:
                     mean = d[(d["model"] == model) & (d["strategy"] == strategy)][
                         metric
@@ -258,6 +276,84 @@ def run(file_pattern: str, args: argparse.Namespace, axes):
 
     axes[1, column].set_xticks(np.arange(len(metrics["user"].unique())))
     axes[1, column].set_xticklabels(metrics["user"].unique(), fontsize=14, rotation=90)
+
+    return summary
+
+
+def generate_latex_table(word_summary: dict, sentence_summary: dict, output_path: str):
+    model_dict = {
+        "eegnet": "EEGNet",
+        "lda": "LDA$^*$",
+        "lr": "LR$^*$",
+        "lstm": "LSTM",
+        "uercm": "UERCM",
+        "lda_control": "Control",
+    }
+    strategies = ["participant-independent", "participant-dependent"]
+    metrics = ["auc", "precision", "recall", "f1"]
+
+    def get_best(summary):
+        """For each (strategy, metric) column, find the highest mean across all models."""
+        best = {}
+        for strategy in strategies:
+            for metric in metrics:
+                best[(strategy, metric)] = max(summary[m][strategy][metric][0] for m in summary)
+        return best
+
+    def cell(mean, std, best_val):
+        s = f"{mean:.2f} ({std:.2f})"
+        return rf"\textbf{{{s}}}" if round(mean, 2) == round(best_val, 2) else s
+
+    def model_rows(summary, best):
+        rows = []
+        for model_key, model_label in model_dict.items():
+            if model_key not in summary:
+                continue
+            cols = []
+            for strategy in strategies:
+                for metric in metrics:
+                    m, s = summary[model_key][strategy][metric]
+                    cols.append(cell(m, s, best[(strategy, metric)]))
+            rows.append(f"        {model_label} & " + " & ".join(cols) + " \\\\")
+        return rows
+
+    word_best = get_best(word_summary)
+    sent_best = get_best(sentence_summary)
+
+    lines = [
+        r"\begin{table*}",
+        r"    \caption{Word relevance and sentence relevance binary classification results averaged over all participants. The best scores are highlighted in bold. The value inside parentheses denotes standard deviation. $^*$ means that the model is trained from scratch in the within-subject strategy, as fine-tuning is not supported for this model.}",
+        r"    \label{tab:results}",
+        r"    \centering",
+        r"    \setlength{\tabcolsep}{8pt}",
+        r"    \begin{tabular}{lcccccccc}",
+        r"        \toprule",
+        r"        \multirow{3}{*}{\thead{Model}} & \multicolumn{4}{c}{\thead{Cross-subject}} & \multicolumn{4}{c}{\thead{Within-subject}}\\",
+        r"        \cmidrule(rl){2-5} \cmidrule(rl){6-9}",
+        r"         & \thead{AUC} & \thead{Precision} & \thead{Recall} & \thead{F1} & \thead{AUC} & \thead{Precision} & \thead{Recall} & \thead{F1}\\",
+        r"        \midrule",
+        r"        & \multicolumn{8}{c}{Word relevance classification task} \\",
+        r"        \midrule",
+    ]
+    lines += model_rows(word_summary, word_best)
+
+    lines += [
+        r"        \midrule",
+        r"        & \multicolumn{8}{c}{Sentence relevance classification task} \\",
+        r"        \midrule",
+    ]
+    lines += model_rows(sentence_summary, sent_best)
+
+    lines += [
+        r"        \bottomrule",
+        r"    \end{tabular}",
+        r"\end{table*}",
+    ]
+
+    table = "\n".join(lines)
+    with open(output_path, "w") as f:
+        f.write(table)
+    logging.info("LaTeX table saved to %s", output_path)
 
 
 def plot_auc_curves(
@@ -377,10 +473,17 @@ if __name__ == "__main__":
     )
 
     logging.info("Generating results for word relevance...")
-    run(file_pattern="w_relevance_seed*.pkl", args=args, axes=axes)
+    word_summary = run(file_pattern="w_relevance_seed*.pkl", args=args, axes=axes)
 
     logging.info("Generating results for sentence relevance...")
-    run(file_pattern="s_relevance_seed*.pkl", args=args, axes=axes)
+    sentence_summary = run(file_pattern="s_relevance_seed*.pkl", args=args, axes=axes)
+
+    if word_summary is not None and sentence_summary is not None:
+        generate_latex_table(
+            word_summary=word_summary,
+            sentence_summary=sentence_summary,
+            output_path=os.path.join(args.project_path, "table_results.tex"),
+        )
 
     plt.savefig(f"figures/results_participants.pdf", format="pdf", bbox_inches="tight")
 
