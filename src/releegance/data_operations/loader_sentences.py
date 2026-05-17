@@ -72,8 +72,7 @@ class DatasetSentences(Dataset):
         Returns:
             A list where each element contains the path to a document.
         """
-        documents = os.listdir(self.dir_data)
-        documents = [sample for sample in documents]
+        documents = [f for f in os.listdir(self.dir_data) if not f.startswith('.')]
         return documents
 
     def read_data(self) -> dict:
